@@ -1,0 +1,50 @@
+# Version control
+.git/
+.gitignore
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Tests & coverage
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.uv/
+
+# Logs (written at runtime, not needed in image)
+logs/
+
+# Development tooling
+dev/
+Makefile
+
+# Documentation
+*.md
+CLAUDE.md
+TECHNICAL_REQUIREMENTS.md
+VALIDATOR_RULES.md
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
