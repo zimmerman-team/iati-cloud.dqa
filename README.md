@@ -12,6 +12,10 @@ A comprehensive Flask-based API for assessing IATI (International Aid Transparen
 - **Docker Compose**: Easy deployment with Redis and Flask API
 - **Comprehensive Tests**: Full pytest suite with edge case coverage
 
+## Architecture
+
+See [DIAGRAMS.md](DIAGRAMS.md) for system architecture, request pipeline, Solr query construction, validation flow, data models, and cache strategy.
+
 ## Requirements
 
 - Python 3.11+

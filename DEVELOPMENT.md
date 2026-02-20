@@ -165,6 +165,8 @@ iati-dqa-api/
 └── README.md                # Main documentation
 ```
 
+See [DIAGRAMS.md](DIAGRAMS.md) for architecture and flow diagrams.
+
 ## Adding New Features
 
 ### 1. Add a New Validation Rule
