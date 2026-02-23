@@ -16,6 +16,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      network: host
     container_name: iati-dqa-api
     ports:
       - "5000:5000"

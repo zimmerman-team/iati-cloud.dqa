@@ -12,8 +12,10 @@ COPY app ./app
 COPY data ./data
 
 # Install dependencies using UV (frozen = reproduce lockfile exactly)
-ENV UV_SYSTEM_PYTHON=1
 RUN uv sync --frozen --no-dev
+
+# Add venv binaries to PATH so gunicorn and other entrypoints are found
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Expose port
 EXPOSE 5000
