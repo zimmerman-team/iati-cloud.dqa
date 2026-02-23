@@ -28,12 +28,12 @@ class TestAuthentication:
 
     def test_swagger_ui_exempt_from_auth(self, raw_client):
         """Test that the Swagger UI is accessible without an API key."""
-        response = raw_client.get("/docs/")
+        response = raw_client.get("/dqa/docs/")
         assert response.status_code != 401
 
     def test_openapi_spec_exempt_from_auth(self, raw_client):
         """Test that the OpenAPI spec endpoint is accessible without an API key."""
-        response = raw_client.get("/apispec.json")
+        response = raw_client.get("/dqa/apispec.json")
         assert response.status_code != 401
 
 

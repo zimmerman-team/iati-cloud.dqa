@@ -241,13 +241,13 @@ def init_swagger(app: Flask) -> Swagger:
             "specs": [
                 {
                     "endpoint": "apispec",
-                    "route": "/apispec.json",
+                    "route": "/dqa/apispec.json",
                     "rule_filter": lambda _r: True,
                     "model_filter": lambda _t: True,
                 }
             ],
             "static_url_path": "/flasgger_static",
             "swagger_ui": True,
-            "specs_route": "/docs/",
+            "specs_route": "/dqa/docs/",
         },
     )

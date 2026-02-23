@@ -25,7 +25,7 @@ init_swagger(app)
 FL_TITLE_NARRATIVE = "title.narrative"
 
 # Swagger UI paths are exempt from authentication
-_SWAGGER_PATHS = {"/docs/", "/apispec.json"}
+_SWAGGER_PATHS = {"/dqa/docs/", "/dqa/apispec.json"}
 
 
 @app.before_request
