@@ -246,7 +246,7 @@ docker-compose -f docker-compose.yml up -d
 
 ## License
 
-[Your License Here]
+[See LICENSE.MD](./LICENSE.MD)
 
 ## Contributing
 
@@ -259,4 +259,4 @@ docker-compose -f docker-compose.yml up -d
 ## Support
 
 For issues and questions:
-- GitHub Issues: [repository-url]/issues
+- [GitHub Issues](https://github.com/zimmerman-team/iati-cloud.dqa/issues)
