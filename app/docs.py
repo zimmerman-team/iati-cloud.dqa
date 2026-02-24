@@ -20,7 +20,7 @@ _SWAGGER_TEMPLATE = {
         "ApiKeyAuth": {
             "type": "apiKey",
             "in": "header",
-            "name": "X-API-Key",
+            "name": "Authorization",
             "description": "API key for authentication. Set SECRET_KEY in .env (default: ZIMMERMAN).",
         }
     },

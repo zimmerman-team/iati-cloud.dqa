@@ -22,7 +22,7 @@ SECTOR_PERCENTAGE = "sector.percentage"
 
 
 class AuthedTestClient:
-    """Wraps Flask test client and injects X-API-Key on every request."""
+    """Wraps Flask test client and injects Authorization on every request."""
 
     def __init__(self, client, api_key: str):
         self._client = client
@@ -30,7 +30,7 @@ class AuthedTestClient:
 
     def _inject_key(self, kwargs: dict) -> dict:
         headers = dict(kwargs.pop("headers", None) or {})
-        headers.setdefault("X-API-Key", self._api_key)
+        headers.setdefault("Authorization", self._api_key)
         return {**kwargs, "headers": headers}
 
     def get(self, *args, **kwargs):
@@ -52,7 +52,7 @@ def flask_app():
 
 @pytest.fixture
 def client(flask_app):
-    """Flask test client with X-API-Key pre-loaded."""
+    """Flask test client with Authorization pre-loaded."""
     return AuthedTestClient(flask_app.test_client(), TEST_API_KEY)
 
 

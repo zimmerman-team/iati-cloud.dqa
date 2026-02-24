@@ -30,10 +30,10 @@ _SWAGGER_PATHS = {"/dqa/docs/", "/dqa/apispec.json"}
 
 @app.before_request
 def require_api_key():
-    """Reject requests that do not carry a valid X-API-Key header."""
+    """Reject requests that do not carry a valid Authorization header."""
     if request.path.startswith("/flasgger_static") or request.path in _SWAGGER_PATHS:
         return
-    if request.headers.get("X-API-Key") != settings.secret_key:
+    if request.headers.get("Authorization") != settings.secret_key:
         return jsonify({"error": "Unauthorized"}), 401
 
 

@@ -8,22 +8,22 @@ class TestAuthentication:
     """Tests for API key authentication."""
 
     def test_missing_api_key_returns_401(self, raw_client):
-        """Test that requests without X-API-Key are rejected."""
+        """Test that requests without Authorization are rejected."""
         response = raw_client.get("/dqa/health")
         assert response.status_code == 401
         data = json.loads(response.data)
         assert "error" in data
 
     def test_wrong_api_key_returns_401(self, raw_client):
-        """Test that requests with an incorrect X-API-Key are rejected."""
-        response = raw_client.get("/dqa/health", headers={"X-API-Key": "WRONG_KEY"})
+        """Test that requests with an incorrect Authorization are rejected."""
+        response = raw_client.get("/dqa/health", headers={"Authorization": "WRONG_KEY"})
         assert response.status_code == 401
 
     def test_correct_api_key_is_accepted(self, raw_client):
-        """Test that the correct X-API-Key passes authentication."""
+        """Test that the correct Authorization passes authentication."""
         with patch("app.main.cache") as mock_cache:
             mock_cache.ping.return_value = True
-            response = raw_client.get("/dqa/health", headers={"X-API-Key": "ZIMMERMAN"})
+            response = raw_client.get("/dqa/health", headers={"Authorization": "ZIMMERMAN"})
         assert response.status_code == 200
 
     def test_swagger_ui_exempt_from_auth(self, raw_client):

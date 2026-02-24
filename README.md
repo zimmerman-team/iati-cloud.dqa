@@ -210,7 +210,7 @@ See [DEVELOPMENT.md](DEVELOPMENT.md) for more test commands and guidance.
 | `SOLR_URL` | Solr instance URL | `http://localhost:8983/solr/activity` |
 | `REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
 | `CACHE_TTL` | Cache TTL in seconds | `86400` (24 hours) |
-| `SECRET_KEY` | API authentication key (`X-API-Key` header) | `ZIMMERMAN` |
+| `SECRET_KEY` | API authentication key (`Authorization` header) | `ZIMMERMAN` |
 | `DEFAULT_DATES` | Comma-separated default dates | `1900-01-01,1970-01-01` |
 | `BUSINESS_CASE_EXEMPTION_MONTHS` | Months before BC required | `3` |
 | `LOGICAL_FRAMEWORK_EXEMPTION_MONTHS` | Months before LF required | `3` |

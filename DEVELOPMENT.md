@@ -296,11 +296,11 @@ curl "http://localhost:8983/solr/activity/select?q=reporting-org.ref:GB-GOV-1&ro
 
 ### API Authentication
 
-All API endpoints require `X-API-Key: <key>` header. The key is configured via `SECRET_KEY` in `.env` (default: `ZIMMERMAN`).
+All API endpoints require `Authorization: <key>` header. The key is configured via `SECRET_KEY` in `.env` (default: `ZIMMERMAN`).
 
 ```bash
 # Example authenticated request
-curl -H "X-API-Key: ZIMMERMAN" http://localhost:5000/dqa/health
+curl -H "Authorization: ZIMMERMAN" http://localhost:5000/dqa/health
 ```
 
 ## Common Development Tasks
@@ -309,7 +309,7 @@ curl -H "X-API-Key: ZIMMERMAN" http://localhost:5000/dqa/health
 
 ```bash
 # Using API
-curl -X POST http://localhost:5000/dqa/cache/clear -H "X-API-Key: ZIMMERMAN"
+curl -X POST http://localhost:5000/dqa/cache/clear -H "Authorization: ZIMMERMAN"
 
 # Using Redis CLI
 docker-compose exec redis redis-cli FLUSHALL
