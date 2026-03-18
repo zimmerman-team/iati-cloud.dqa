@@ -7,7 +7,7 @@ import pytest  # noqa: F401
 
 from app.cache import Cache
 from app.main import app
-from app.models import (ActivityValidationResult, DQAResponse,
+from app.models import (ActivityValidationResult, DQAResponse, OptionalRules,
                         OrganisationSummary)
 from app.solr_client import SolrClient
 from app.validator import ActivityValidator
@@ -94,6 +94,12 @@ def mock_validator():
 def validator():
     """Activity validator instance."""
     return ActivityValidator(exemptions=[])
+
+
+@pytest.fixture
+def validator_with_acronym_check():
+    """Activity validator instance with acronym checking enabled."""
+    return ActivityValidator(exemptions=[], optional_rules=OptionalRules(check_acronyms=True))
 
 
 @pytest.fixture

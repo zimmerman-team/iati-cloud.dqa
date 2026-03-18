@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from app.config import DATA_DIR, settings
 from app.models import (ActivityValidationResult, AttributeValidation,
                         DocumentValidation, DQAPercentages, DQAResponse,
-                        ValidationResult)
+                        OptionalRules, ValidationResult)
 
 EXEMPTION_REASON_NO_START_DATE = "No start date available"
 EXEMPTION_REASON_EXEMPT = "Activity is exempt from document requirements"
@@ -20,14 +20,16 @@ logger = logging.getLogger("app.validator")
 class ActivityValidator:
     """Validates IATI activities against DQA requirements."""
 
-    def __init__(self, exemptions: Optional[List[str]] = None):
+    def __init__(self, exemptions: Optional[List[str]] = None, optional_rules: Optional[OptionalRules] = None):
         """
         Initialize validator.
 
         Args:
             exemptions: List of IATI identifiers that are exempt from document checks
+            optional_rules: Optional validation rules (all default to False/disabled)
         """
         self.exemptions = exemptions or []
+        self.optional_rules = optional_rules or OptionalRules()
         self.default_dates = settings.get_default_dates()
         with open(os.path.join(DATA_DIR, "non_acronyms.json")) as f:
             self._non_acronyms = json.load(f)
@@ -96,16 +98,17 @@ class ActivityValidator:
                 details={"length": len(title), "title": title, "percentage": len(title) / 10.0 * 100},
             )
 
-        # This is a simple heuristic for detecting acronyms - all uppercase words of 2-5 letters
-        found_acronyms = self._find_acronyms(title)
-        if found_acronyms:
-            len_acronyms = sum(len(a) for a in found_acronyms)
-            return AttributeValidation(
-                attribute="title",
-                status=ValidationResult.FAIL,
-                message=f"Title contains potential acronyms that should be expanded: {', '.join(found_acronyms)}",
-                details={"acronyms": found_acronyms, "percentage": (1 - len_acronyms / len(title)) * 100},
-            )
+        # Acronym check is optional — only runs when explicitly enabled
+        if self.optional_rules.check_acronyms:
+            found_acronyms = self._find_acronyms(title)
+            if found_acronyms:
+                len_acronyms = sum(len(a) for a in found_acronyms)
+                return AttributeValidation(
+                    attribute="title",
+                    status=ValidationResult.FAIL,
+                    message=f"Title contains potential acronyms that should be expanded: {', '.join(found_acronyms)}",
+                    details={"acronyms": found_acronyms, "percentage": (1 - len_acronyms / len(title)) * 100},
+                )
 
         return AttributeValidation(
             attribute="title", status=ValidationResult.PASS, details={"length": len(title), "percentage": 100.0}

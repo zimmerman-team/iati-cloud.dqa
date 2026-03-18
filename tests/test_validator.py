@@ -32,15 +32,27 @@ class TestTitleValidation:
         assert "short" in result.message.lower()
         assert result.details["length"] < 10
 
-    def test_title_with_acronyms(self, validator):
-        """Test that title with acronyms is handled correctly."""
+    def test_title_with_acronyms_check_enabled(self, validator_with_acronym_check):
+        """Test that title with acronyms fails when check_acronyms is enabled."""
         activity = {"title.narrative": ["60 char test text (CPSD), U.S.A. U.S.A e.g. should all be detected."]}
-        result = validator.validate_title(activity)
+        result = validator_with_acronym_check.validate_title(activity)
         assert result.status == ValidationResult.FAIL
         assert "CPSD" in result.details["acronyms"]
         assert "U.S.A." in result.details["acronyms"]
         assert "U.S.A" in result.details["acronyms"]
         assert "e.g." in result.details["acronyms"]
+
+    def test_title_with_acronyms_check_disabled(self, validator):
+        """Test that title with acronyms passes when check_acronyms is not enabled (default)."""
+        activity = {"title.narrative": ["60 char test text (CPSD), U.S.A. U.S.A e.g. should all be detected."]}
+        result = validator.validate_title(activity)
+        assert result.status == ValidationResult.PASS
+
+    def test_title_no_acronyms_check_enabled(self, validator_with_acronym_check):
+        """Test that a title with no acronyms passes when check_acronyms is enabled (covers empty raw branch)."""
+        activity = {"title.narrative": ["Sustainable development programme for climate resilience"]}
+        result = validator_with_acronym_check.validate_title(activity)
+        assert result.status == ValidationResult.PASS
 
 
 class TestDescriptionValidation:

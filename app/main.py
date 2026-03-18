@@ -111,6 +111,7 @@ def run_dqa():
         regions=dqa_request.segmentation.regions if dqa_request.segmentation else None,
         sectors=dqa_request.segmentation.sectors if dqa_request.segmentation else None,
         require_funding_and_accountable=dqa_request.require_funding_and_accountable,
+        optional_rules=dqa_request.optional_rules,
     )
 
     cached_result = cache.get(cache_key)
@@ -121,7 +122,7 @@ def run_dqa():
     with open(os.path.join(DATA_DIR, "document_validation_exemptions.json")) as f:
         exemptions: List[str] = json.load(f)
     logger.info(f"Loaded {len(exemptions)} document validation exemptions: {exemptions}")
-    validator = ActivityValidator(exemptions=exemptions)
+    validator = ActivityValidator(exemptions=exemptions, optional_rules=dqa_request.optional_rules)
 
     # Build filters
     filters = {}

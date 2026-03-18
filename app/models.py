@@ -74,6 +74,14 @@ class SegmentationFilter(BaseModel):
     sectors: Optional[List[str]] = None
 
 
+class OptionalRules(BaseModel):
+    """Optional validation rules that are disabled by default."""
+
+    check_acronyms: bool = Field(
+        default=False, description="Validate that activity titles contain no unexpanded acronyms"
+    )
+
+
 class DQARequest(BaseModel):
     """Request parameters for DQA endpoint."""
 
@@ -81,6 +89,7 @@ class DQARequest(BaseModel):
     segmentation: Optional[SegmentationFilter] = None
     require_funding_and_accountable: bool = False
     include_exemptions: bool = True
+    optional_rules: Optional[OptionalRules] = None
 
 
 class DQAPercentages(BaseModel):
