@@ -107,7 +107,7 @@ flowchart TD
     ACT --> HIER{Hierarchy?}
     HIER -->|H1 only| DOC[Document Validators]
 
-    ATTR --> T[title ≥60 chars, no unmatched acronyms]
+    ATTR --> T[title ≥10 chars, no unmatched acronyms]
     ATTR --> D[description exists, longer than title, not a repeat of title]
     ATTR --> SD[start date exists, not a placeholder date]
     ATTR --> ED[end date exists, after start date]

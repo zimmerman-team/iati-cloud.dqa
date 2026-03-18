@@ -165,7 +165,7 @@ def activity_with_invalid_title():
     return {
         "iati-identifier": "GB-GOV-1-SHORT",
         "hierarchy": 1,
-        TITLE_NARRATIVE: ["Short Title"],
+        TITLE_NARRATIVE: ["Short"],
         DESCRIPTION_NARRATIVE: ["This is a valid description that is longer than the title."],
     }
 
@@ -346,11 +346,11 @@ def dqa_response_sample():
                     {
                         "attribute": "title",
                         "details": {
-                            "length": 35,
-                            "percentage": 58.333333333333336,
-                            "title": "British Council: budgets & payments",
+                            "length": 7,
+                            "percentage": 70.0,
+                            "title": "Council",
                         },
-                        "message": "Title is too short (35 characters, minimum 60 required)",
+                        "message": "Title is too short (7 characters, minimum 10 required)",
                         "status": "fail",
                     },
                     {

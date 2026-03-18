@@ -14,7 +14,7 @@ Source field: `title.narrative` (first element if list)
 | Condition | Status | Message | Percentage |
 |---|---|---|---|
 | Field is missing or empty | FAIL | "Title is missing" | 0% |
-| Length < 60 characters | FAIL | "Title is too short (N characters, minimum 60 required)" | `len / 60 × 100` |
+| Length < 10 characters | FAIL | "Title is too short (N characters, minimum 10 required)" | `len / 10 × 100` |
 | Contains unexpanded acronyms¹ | FAIL | "Title contains potential acronyms that should be expanded: ..." | `(1 − Σ len(acronym) / len(title)) × 100` |
 | All checks pass | PASS | — | 100% |
 

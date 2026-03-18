@@ -75,7 +75,7 @@ class ActivityValidator:
         return [a for a in raw if a not in self._non_acronyms]
 
     def validate_title(self, activity: Dict[str, Any]) -> AttributeValidation:
-        """Validate title exists, has expanded acronyms, and minimum 60 characters."""
+        """Validate title exists, has expanded acronyms, and minimum 10 characters."""
         logger.debug(f"Validating title for activity: {activity.get('iati-identifier', 'unknown')}")
         title = activity.get("title.narrative")
 
@@ -88,12 +88,12 @@ class ActivityValidator:
         if isinstance(title, list):
             title = title[0] if title else ""
 
-        if len(title) < 60:
+        if len(title) < 10:
             return AttributeValidation(
                 attribute="title",
                 status=ValidationResult.FAIL,
-                message=f"Title is too short ({len(title)} characters, minimum 60 required)",
-                details={"length": len(title), "title": title, "percentage": len(title) / 60.0 * 100},
+                message=f"Title is too short ({len(title)} characters, minimum 10 required)",
+                details={"length": len(title), "title": title, "percentage": len(title) / 10.0 * 100},
             )
 
         # This is a simple heuristic for detecting acronyms - all uppercase words of 2-5 letters

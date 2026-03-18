@@ -109,14 +109,14 @@ Response:
     {
       "iati_identifier": "GB-GOV-1-12345",
       "hierarchy": 1,
-      "title": "Programme Title",
+      "title": "Short",
       "activity_status": "2",
       "attributes": [
         {
           "attribute": "title",
           "status": "fail",
-          "message": "Title is too short (45 characters, minimum 60 required)",
-          "details": {"length": 45}
+          "message": "Title is too short (5 characters, minimum 10 required)",
+          "details": {"length": 5}
         }
       ],
       "documents": [],

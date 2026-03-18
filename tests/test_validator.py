@@ -16,7 +16,7 @@ class TestTitleValidation:
         """Test that a valid title passes."""
         result = validator.validate_title(sample_activity)
         assert result.status == ValidationResult.PASS
-        assert result.details["length"] >= 60
+        assert result.details["length"] >= 10
 
     def test_missing_title(self, validator):
         """Test that missing title fails."""
@@ -30,7 +30,7 @@ class TestTitleValidation:
         result = validator.validate_title(activity_with_invalid_title)
         assert result.status == ValidationResult.FAIL
         assert "short" in result.message.lower()
-        assert result.details["length"] < 60
+        assert result.details["length"] < 10
 
     def test_title_with_acronyms(self, validator):
         """Test that title with acronyms is handled correctly."""
@@ -667,4 +667,4 @@ class TestCalculatePercentages:
         assert res.percentages.participating_organisations_percentage == 100
         assert res.percentages.sector_percentage == 100
         assert res.percentages.start_date_percentage == 100
-        assert res.percentages.title_percentage == 77
+        assert res.percentages.title_percentage == 83
