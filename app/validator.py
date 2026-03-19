@@ -184,6 +184,13 @@ class ActivityValidator:
         # Handle list of dates
         if isinstance(start_date_str, list):
             start_date_str = start_date_str[0] if start_date_str else None
+        if start_date_str is None:
+            return AttributeValidation(
+                attribute="start_date",
+                status=ValidationResult.FAIL,
+                message="Start date is missing",
+                details={"percentage": 0.0},
+            )
 
         try:
             start_date = datetime.fromisoformat(self._update_date_str(start_date_str))
@@ -700,7 +707,7 @@ class ActivityValidator:
                 if attr.status == ValidationResult.NOT_APPLICABLE:
                     continue
                 if attr.attribute == attribute_name:
-                    percentages.append(attr.details.get("percentage", 0.0))
+                    percentages.append((attr.details or {}).get("percentage", 0.0))
 
         return round(sum(percentages) / len(percentages) if percentages else 0.0)
 

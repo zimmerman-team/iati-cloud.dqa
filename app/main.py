@@ -300,9 +300,15 @@ def _config_update(values: List[str], old_value: str, new_value: str):
 def _apply_config_edit(values: List[str], edit_req: ConfigEditRequest):
     """Apply an add/remove/update edit to a config list. Returns (updated, error_msg, status_code)."""
     if edit_req.action == ConfigAction.ADD:
+        if edit_req.value is None:
+            return None, "Missing value for add action", 400
         return _config_add(values, edit_req.value)
     if edit_req.action == ConfigAction.REMOVE:
+        if edit_req.value is None:
+            return None, "Missing value for remove action", 400
         return _config_remove(values, edit_req.value)
+    if edit_req.old_value is None or edit_req.new_value is None:
+        return None, "Missing old_value or new_value for update action", 400
     return _config_update(values, edit_req.old_value, edit_req.new_value)
 
 
