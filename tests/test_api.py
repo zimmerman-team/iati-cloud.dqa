@@ -257,7 +257,9 @@ class TestCacheClearEndpoint:
         mock_cache.clear_pattern.return_value = 5
 
         with patch("app.main.cache", mock_cache):
-            response = client.post("/dqa/cache/clear?pattern=dqa:GB-GOV-1:*")
+            response = client.post(
+                "/dqa/cache/clear", data=json.dumps({"pattern": "dqa:GB-GOV-1:*"}), content_type="application/json"
+            )
             data = json.loads(response.data)
 
             assert response.status_code == 200

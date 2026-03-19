@@ -139,7 +139,10 @@ Response:
 ### Clear Cache
 
 ```bash
-POST /dqa/cache/clear?pattern=dqa:*
+POST /dqa/cache/clear
+Content-Type: application/json
+
+{ "pattern": "dqa:*" }
 ```
 
 Response:
