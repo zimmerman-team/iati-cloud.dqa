@@ -6,9 +6,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from app.config import DATA_DIR, settings
-from app.models import (ActivityValidationResult, AttributeValidation,
-                        DocumentValidation, DQAPercentages, DQAResponse,
-                        OptionalRules, ValidationResult)
+from app.models import (
+    ActivityValidationResult,
+    AttributeValidation,
+    DocumentValidation,
+    DQAPercentages,
+    DQAResponse,
+    OptionalRules,
+    ValidationResult,
+)
 
 EXEMPTION_REASON_NO_START_DATE = "No start date available"
 EXEMPTION_REASON_EXEMPT = "Activity is exempt from document requirements"
@@ -98,7 +104,7 @@ class ActivityValidator:
                 details={"length": len(title), "title": title, "percentage": len(title) / 10.0 * 100},
             )
 
-        # Acronym check is optional — only runs when explicitly enabled
+        # Acronym check is optional, only runs when explicitly enabled
         if self.optional_rules.check_acronyms:
             found_acronyms = self._find_acronyms(title)
             if found_acronyms:

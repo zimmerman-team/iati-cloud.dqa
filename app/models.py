@@ -19,7 +19,8 @@ class ActivityStatus(str, Enum):
 class ValidationResult(str, Enum):
     """Validation result status."""
 
-    PASS = "pass"
+    # Reason for nosec: B105 - "pass" is not a password but a validation status
+    PASS = "pass"  # nosec: B105
     FAIL = "fail"
     NOT_APPLICABLE = "not_applicable"
 

@@ -11,9 +11,15 @@ from flask_cors import CORS
 from app.cache import cache
 from app.config import DATA_DIR, settings
 from app.docs import init_swagger
-from app.models import (ActivityValidationResult, ConfigAction,
-                        ConfigEditRequest, DQARequest, DQAResponse,
-                        OrganisationSummary, ValidationResult)
+from app.models import (
+    ActivityValidationResult,
+    ConfigAction,
+    ConfigEditRequest,
+    DQARequest,
+    DQAResponse,
+    OrganisationSummary,
+    ValidationResult,
+)
 from app.solr_client import solr_client
 from app.validator import ActivityValidator
 
@@ -71,9 +77,9 @@ def run_dqa():
     summary: Validate IATI data quality for an organisation.
     description: |
       Fetches IATI activities for the given organisation from Solr and validates:
-      - **Attribute completeness** — title, description, dates, sectors, locations,
+      - **Attribute completeness** - title, description, dates, sectors, locations,
         participating organisations.
-      - **Document publication** (H1 programmes only) — Business Case, Logical Framework,
+      - **Document publication** (H1 programmes only) - Business Case, Logical Framework,
         Annual Review.
 
       Only activities with status 2 (implementation) or 4 (closed within the last 18 months)
@@ -242,18 +248,24 @@ def clear_cache():
       Removes cache keys matching the given glob-style pattern.
       Defaults to all keys (`*`).
     parameters:
-      - in: query
-        name: pattern
-        type: string
-        default: "*"
-        description: Redis key pattern to match (glob-style). Defaults to all keys.
+      - in: body
+        name: body
+        required: false
+        schema:
+          type: object
+          properties:
+            pattern:
+              type: string
+              default: "*"
+              description: Redis key pattern to match (glob-style). Defaults to all keys.
     responses:
       200:
         description: Number of keys removed and the pattern used.
         schema:
           $ref: '#/definitions/CacheClearResponse'
     """
-    pattern = request.args.get("pattern", "*")
+    req_data = request.get_json(silent=True) or {}
+    pattern = req_data.get("pattern", "*")
     count = cache.clear_pattern(pattern)
     logger.info(f"Cache cleared: {count} keys matching pattern '{pattern}'")
     return jsonify({"cleared": count, "pattern": pattern})
@@ -417,4 +429,5 @@ def edit_config(config_name: str):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    DEBUG = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    app.run(host="127.0.0.1", port=5000, debug=DEBUG)

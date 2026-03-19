@@ -26,7 +26,7 @@ def setup_logging() -> None:
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
 
-    # Root at WARNING — library noise (werkzeug, pysolr) stays out unless it's an error
+    # Root at WARNING - library noise (werkzeug, pysolr) stays out unless it's an error
     root = logging.getLogger()
     root.setLevel(logging.WARNING)
     root.addHandler(file_handler)

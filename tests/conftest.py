@@ -7,8 +7,7 @@ import pytest  # noqa: F401
 
 from app.cache import Cache
 from app.main import app
-from app.models import (ActivityValidationResult, DQAResponse, OptionalRules,
-                        OrganisationSummary)
+from app.models import ActivityValidationResult, DQAResponse, OptionalRules, OrganisationSummary
 from app.solr_client import SolrClient
 from app.validator import ActivityValidator
 

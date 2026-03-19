@@ -32,7 +32,7 @@ git clone <repository-url>
 cd iati-dqa-api
 ```
 
-The repo includes a committed `uv.lock` — all dependency versions are pinned for reproducible installs.
+The repo includes a committed `uv.lock` - all dependency versions are pinned for reproducible installs.
 
 ### 2. Configure Environment
 
@@ -170,7 +170,7 @@ GET /dqa/config/<config_name>
 { "config_name": "default_dates", "values": ["1900-01-01", "1970-01-01"] }
 ```
 
-**Edit a config** — `action` is one of `add`, `remove`, or `update`:
+**Edit a config** - `action` is one of `add`, `remove`, or `update`:
 ```bash
 PATCH /dqa/config/<config_name>
 Content-Type: application/json

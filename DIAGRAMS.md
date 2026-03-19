@@ -1,4 +1,4 @@
-# IATI DQA — Architecture Diagrams
+# IATI DQA - Architecture Diagrams
 
 ## 1. System Architecture
 
@@ -52,7 +52,7 @@ graph TB
 
 ---
 
-## 2. Request Pipeline — POST /dqa
+## 2. Request Pipeline - POST /dqa
 
 ```mermaid
 flowchart TD
@@ -70,7 +70,7 @@ flowchart TD
     J --> K[Validate each H2 activity, 7 attributes only]
     K --> L[Aggregate pass/fail/not_applicable counts]
     L --> M[Calculate percentages per attribute & document]
-    M --> N[Store result in Redis — 24h TTL]
+    M --> N[Store result in Redis - 24h TTL]
     N --> O([Return DQAResponse])
 ```
 

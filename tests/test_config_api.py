@@ -72,7 +72,7 @@ class TestGetConfig:
 
 
 class TestEditConfigAdd:
-    """PATCH /dqa/config/<config_name> — action: add"""
+    """PATCH /dqa/config/<config_name> - action: add"""
 
     def test_add_new_value(self, client, patched_data_dir):
         payload = {"action": "add", "value": "2000-01-01"}
@@ -126,7 +126,7 @@ class TestEditConfigAdd:
 
 
 class TestEditConfigRemove:
-    """PATCH /dqa/config/<config_name> — action: remove"""
+    """PATCH /dqa/config/<config_name> - action: remove"""
 
     def test_remove_existing_value(self, client, patched_data_dir):
         payload = {"action": "remove", "value": "1900-01-01"}
@@ -170,7 +170,7 @@ class TestEditConfigRemove:
 
 
 class TestEditConfigUpdate:
-    """PATCH /dqa/config/<config_name> — action: update"""
+    """PATCH /dqa/config/<config_name> - action: update"""
 
     def test_update_existing_value(self, client, patched_data_dir):
         payload = {"action": "update", "old_value": "1900-01-01", "new_value": "1901-01-01"}
