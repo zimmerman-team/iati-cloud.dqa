@@ -17,10 +17,10 @@ git clone <repository-url>
 cd iati-dqa-api
 
 # Install UV if not already installed
-pip install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Create virtual environment and install dependencies
-uv pip install -e ".[dev]"
+# Install all dependencies from uv.lock (pinned, reproducible) and pre-commit hooks
+make dev
 
 # Copy environment file
 cp .env.example .env
@@ -118,16 +118,27 @@ isort --check-only app tests
 ```bash
 # Run flake8 linter
 flake8 app tests
+
+# Run bandit security linter
+bandit -c pyproject.toml -r app
+```
+
+### Pre-commit Hooks
+
+Pre-commit hooks (black, isort, flake8, bandit, commitlint) are installed automatically by `make dev`. To update hook versions to their latest releases:
+
+```bash
+uv run pre-commit autoupdate
 ```
 
 ### Type Checking (Optional)
 
 ```bash
-# Install mypy
-uv pip install mypy
+# Install ty
+uv add ty
 
 # Run type checking
-mypy app
+uv run ty app
 ```
 
 ## Project Structure
@@ -336,12 +347,18 @@ docker-compose logs -f redis
 ### Update Dependencies
 
 ```bash
-# Add new dependency
-uv pip install package-name
+# Add a new dependency (updates pyproject.toml and uv.lock automatically)
+uv add package-name
 
-# Update pyproject.toml
-# Then sync
-uv pip sync
+# Add a dev-only dependency
+uv add --optional dev package-name
+
+# Sync environment to match uv.lock
+uv sync --extra dev
+
+# Upgrade all dependencies to their latest allowed versions
+uv lock --upgrade
+# Then commit the updated uv.lock
 ```
 
 ## Performance Profiling
@@ -358,8 +375,8 @@ app.wsgi_app = ProfilerMiddleware(app.wsgi_app)
 ### Memory Profiling
 
 ```bash
-# Install memory profiler
-uv pip install memory-profiler
+# Install memory profiler (adds to pyproject.toml and updates uv.lock)
+uv add memory-profiler
 
 # Decorate function
 from memory_profiler import profile
@@ -397,7 +414,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install uv
-          uv pip install -e ".[dev]"
+          uv sync --extra dev
 
       - name: Run tests
         run: pytest --cov=app
@@ -441,7 +458,7 @@ cat .env | grep SOLR_URL
 pwd
 
 # Reinstall package in editable mode
-uv pip install -e .
+uv sync
 ```
 
 ## Best Practices

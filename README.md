@@ -32,6 +32,8 @@ git clone <repository-url>
 cd iati-dqa-api
 ```
 
+The repo includes a committed `uv.lock` — all dependency versions are pinned for reproducible installs.
+
 ### 2. Configure Environment
 
 ```bash
@@ -50,8 +52,8 @@ The API will be available at `http://localhost:5000`
 ### 4. Local Development
 
 ```bash
-# Install dependencies with UV
-uv pip install -e ".[dev]"
+# Install all dependencies from uv.lock and install pre-commit hooks
+make dev
 
 # Run Redis
 docker-compose up redis -d
