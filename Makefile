@@ -1,4 +1,4 @@
-.PHONY: help install dev test test-verbose lint format format-check security docker-up docker-down docker-logs docker-rebuild run clean redis-cli check-all
+.PHONY: help install dev test test-verbose lint format format-check typecheck security docker-up docker-down docker-logs docker-rebuild run clean redis-cli check-all
 
 help:
 	@echo "IATI Data Quality API - Make Commands"
@@ -10,6 +10,7 @@ help:
 	@echo "  make lint           - Run linters (flake8)"
 	@echo "  make format         - Format code (black + isort)"
 	@echo "  make format-check   - Check formatting without modifying files"
+	@echo "  make typecheck      - Run type checks (ty)"
 	@echo "  make security       - Run security checks (bandit)"
 	@echo "  make docker-up      - Start Docker services"
 	@echo "  make docker-down    - Stop Docker services"
@@ -45,6 +46,9 @@ format-check:
 	uv run black --check app tests
 	uv run isort --check app tests
 
+typecheck:
+	uv run ty check app
+
 security:
 	uv run bandit -c pyproject.toml -r app
 
@@ -76,5 +80,5 @@ clean:
 redis-cli:
 	docker compose exec redis redis-cli
 
-check-all: format-check lint security test
+check-all: format-check lint typecheck security test
 	@echo "All checks passed!"

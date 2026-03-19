@@ -18,6 +18,14 @@ repos:
     -   id: bandit
         args: ["-c", "pyproject.toml"]
         exclude: ^tests/
+-   repo: local
+    hooks:
+    -   id: ty
+        name: ty
+        entry: uv run ty check app
+        language: system
+        types: [python]
+        pass_filenames: false
 -   repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
     rev: v9.24.0
     hooks:
