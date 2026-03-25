@@ -29,6 +29,8 @@ CORS(app)
 init_swagger(app)
 
 FL_TITLE_NARRATIVE = "title.narrative"
+_EDPL = "_expected_downstream_partner_links"
+_HDPL = "_has_downstream_partner_links"
 
 # Swagger UI paths are exempt from authentication
 _SWAGGER_PATHS = {"/dqa/docs/", "/dqa/apispec.json"}
@@ -79,8 +81,10 @@ def run_dqa():
       Fetches IATI activities for the given organisation from Solr and validates:
       - **Attribute completeness** - title, description, dates, sectors, locations,
         participating organisations.
+      - **Downstream partner links** (H1 programmes only) - whether any external organisation
+        has published an activity linking back to this programme or its projects.
       - **Document publication** (H1 programmes only) - Business Case, Logical Framework,
-        Annual Review.
+        Annual Review, Project Completion Review (closed programmes only).
 
       Only activities with status 2 (implementation) or 4 (closed within the last 18 months)
       are included. Results are cached in Redis for 24 hours.
@@ -121,7 +125,7 @@ def run_dqa():
     )
 
     cached_result = cache.get(cache_key)
-    if cached_result:
+    if cached_result and not dqa_request.skip_cache:
         logger.debug(f"Cache hit for DQA: {dqa_request.organisation}")
         return jsonify(cached_result)
 
@@ -145,6 +149,9 @@ def run_dqa():
     # Get activities
     h1_activities = solr_client.get_h1_activities(dqa_request.organisation, **filters)
     h2_activities = solr_client.get_h2_activities(dqa_request.organisation, **filters)
+
+    # Determine downstream partner links for each H1 programme
+    _inject_downstream_partner_links(h1_activities, h2_activities)
 
     # Get budgets for financial year
     fy_start, fy_end = settings.get_current_financial_year()
@@ -234,6 +241,68 @@ def _run_dqa_validate(
         # Count N/A
         not_applicable_count += sum(1 for v in all_validations if v.status == ValidationResult.NOT_APPLICABLE)
     return failed_activities, pass_count, fail_count, not_applicable_count
+
+
+def _process_h2_downstream_links(
+    activity: Dict[str, Any], referenced_partners: set, h2_links: Dict[str, Dict[str, Any]]
+):
+    iati_id = activity.get("iati-identifier", "")
+    # Expected links is how many times "3" occurs in transaction.transaction-type.code
+    expected_links = sum(1 for t in activity.get("transaction.transaction-type.code", []) if t == "3")
+    activity[_EDPL] = expected_links
+    activity[_HDPL] = iati_id in referenced_partners
+    h2_links[iati_id] = {"expected_links": expected_links, "has_link": activity[_HDPL]}
+
+
+def _process_h1_downstream_links(
+    activity: Dict[str, Any],
+    referenced_partners: set,
+    activity_ids: Dict[str, List[str]],
+    h2_links: Dict[str, Dict[str, Any]],
+):
+    iati_id = activity.get("iati-identifier", "")
+    # Expected links is the sum of expected links for all child H2 activities and the H1 itself
+    activity[_EDPL] = sum(1 for t in activity.get("transaction.transaction-type.code", []) if t == "3")
+    activity[_HDPL] = iati_id in referenced_partners
+    if activity[_HDPL]:
+        return
+    for h2_id in activity_ids.get(iati_id, []):
+        if h2_id in h2_links:
+            activity[_EDPL] += h2_links.get(h2_id, {}).get("expected_links", 0)
+            if h2_links.get(h2_id, {}).get("has_link", False):
+                activity[_HDPL] = True
+
+
+def _inject_downstream_partner_links(
+    h1_activities: List[Dict[str, Any]],
+    h2_activities: List[Dict[str, Any]],
+) -> None:
+    """Inject `_has_downstream_partner_links` into each activity dict.
+
+    Builds a map of H1 → H2 identifiers from the H2 activities' parent references,
+    then queries Solr for external activities that link to any of these identifiers.
+    """
+    # Make a list of all iati-identifiers belonging to the h1 activity.
+    activity_ids = {}
+    for activity in h1_activities:
+        parent_id = activity.get("iati-identifier", "")
+        activity_ids[parent_id] = [parent_id]
+        rel_activities = activity.get("json.related-activity", [])
+        for _rel in rel_activities:
+            rel = json.loads(_rel)
+            if rel.get("type", 0) == 2 and rel.get("ref", None):
+                activity_ids[parent_id].append(rel.get("ref", ""))
+
+    # get all downstream partners that link back to any H1 or H2 activity
+    referenced_partners = solr_client.get_all_downstream_partners_for_h1_and_h2(activity_ids)
+
+    h2_links = {}
+
+    for activity in h2_activities:
+        _process_h2_downstream_links(activity, referenced_partners, h2_links)
+
+    for activity in h1_activities:
+        _process_h1_downstream_links(activity, referenced_partners, activity_ids, h2_links)
 
 
 @app.route("/dqa/cache/clear", methods=["POST"])
@@ -435,5 +504,4 @@ def edit_config(config_name: str):
 
 
 if __name__ == "__main__":  # pragma: no cover
-    DEBUG = os.getenv("FLASK_DEBUG", "false").lower() == "true"
-    app.run(host="127.0.0.1", port=5000, debug=DEBUG)
+    app.run(host="127.0.0.1", port=5000, debug=settings.flask_debug)

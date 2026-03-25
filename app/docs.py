@@ -137,9 +137,11 @@ _SWAGGER_TEMPLATE = {
                 "sector_percentage": {"type": "integer"},
                 "location_data_percentage": {"type": "integer"},
                 "participating_organisations_percentage": {"type": "integer"},
+                "downstream_partner_links_percentage": {"type": "integer"},
                 "document_business_case_percentage": {"type": "integer"},
                 "document_logical_framework_percentage": {"type": "integer"},
                 "document_annual_review_percentage": {"type": "integer"},
+                "document_project_completion_review_percentage": {"type": "integer"},
             },
         },
         "DQAResponse": {

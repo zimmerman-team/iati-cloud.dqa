@@ -123,6 +123,24 @@ Source field: `participating-org.ref`
 
 ---
 
+### Downstream Partner Links
+
+**H1 only.** Checks whether any external organisation has published an IATI activity that references this programme or any of its in-scope H2 projects.
+
+Source field: Reverse search for `transaction_provider_org_provider_activity_id` matching H1 or H2 activities in scope, in other IATI activities.
+
+| Condition | Status | Message | Percentage |
+|---|---|---|---|
+| At least one downstream partner activity links to the H1 or any of its H2 projects | PASS | - | 100% |
+| No downstream partner activity links found | FAIL | "No downstream partner activities are linked to this programme or its projects" | 0% |
+
+Notes:
+- H1 and H2 activities are evaluated, but any failure is only shown at the H1 level.
+- Segmentation applies: only the H1 programmes and H2 projects already in scope for the current request are searched.
+- The `_has_downstream_partner_links` and `_expected_downstream_partner_links` flags are injected into the activity dict before validation runs (in `main.py`).
+
+---
+
 ## Documents (H1 only)
 
 Document validations only apply to H1 (programme-level, hierarchy 1) activities. Each check scans `document-link.title.narrative` for a matching pattern (case-insensitive regex). An activity is fully exempt from all document checks if its IATI identifier appears in `data/document_validation_exemptions.json`.
@@ -175,3 +193,22 @@ Title pattern: `Annual Review.*Published`
 | Document not published | FAIL | "Annual Review document not published" |
 
 ¹ Exemption period configurable (`annual_review_exemption_months`, default 19).
+
+---
+
+### Project Completion Review
+
+Title pattern: `Project Completion Review.*Published`
+
+Only applies to closed programmes (`activity-status.code == 4`) where the actual end date was more than N months ago.
+
+| Condition | Status | Reason / Message |
+|---|---|---|
+| Activity is on the exemption list | NOT_APPLICABLE | "Activity is exempt from document requirements" |
+| Status code is not 4 (not closed) | NOT_APPLICABLE | "Activity is not a closed programme" |
+| No `activity-date.end-actual` | NOT_APPLICABLE | "No end date available" |
+| Closed within the last N months¹ | NOT_APPLICABLE | "Activity closed less than N months ago" |
+| Document published | PASS | - |
+| Document not published | FAIL | "Project Completion Review document not published" |
+
+¹ Exemption period configurable (`project_completion_review_exemption_months`, default 6). Uses `activity-date.end-actual` only (not end-planned).

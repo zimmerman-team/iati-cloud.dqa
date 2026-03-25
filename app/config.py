@@ -45,6 +45,9 @@ def _get_dates() -> str:
 class Settings(BaseSettings):
     """Application settings."""
 
+    # DEBUG
+    flask_debug: bool = False
+
     # Solr Configuration
     solr_url: str = "http://localhost:8983/solr/activity"
 
@@ -58,6 +61,7 @@ class Settings(BaseSettings):
     business_case_exemption_months: int = 3
     logical_framework_exemption_months: int = 3
     annual_review_exemption_months: int = 19
+    project_completion_review_exemption_months: int = 6
 
     # Tolerance for percentage validation
     sector_tolerance: float = 0.02

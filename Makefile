@@ -1,14 +1,14 @@
-.PHONY: help install dev test test-verbose lint format format-check typecheck security docker-up docker-down docker-logs docker-rebuild run clean redis-cli check-all
+.PHONY: help install dev test test-quiet test-verbose lint format format-check typecheck security docker-up docker-down docker-logs docker-rebuild run clean redis-cli check-all
 
 help:
 	@echo "IATI Data Quality API - Make Commands"
 	@echo ""
 	@echo "  make install        - Install production dependencies"
-	@echo "  make dev            - Install development dependencies"
+	@echo "  make dev-install    - Install development dependencies"
 	@echo "  make test           - Run tests with coverage"
 	@echo "  make test-verbose   - Run tests with extra verbosity"
 	@echo "  make lint           - Run linters (flake8)"
-	@echo "  make format         - Format code (black + isort)"
+	@echo "  make format         - Format code (ruff format + isort)"
 	@echo "  make format-check   - Check formatting without modifying files"
 	@echo "  make typecheck      - Run type checks (ty)"
 	@echo "  make security       - Run security checks (bandit)"
@@ -25,12 +25,15 @@ help:
 install:
 	uv sync
 
-dev:
+dev-install:
 	uv sync --extra dev
 	uv run pre-commit install
 
 test:
 	uv run pytest
+
+test-quiet:
+	uv run pytest -q --no-header
 
 test-verbose:
 	uv run pytest -vv --cov=app --cov-report=term-missing
@@ -39,11 +42,11 @@ lint:
 	uv run flake8 app tests
 
 format:
-	uv run black app tests
+	uv run ruff format app tests
 	uv run isort app tests
 
 format-check:
-	uv run black --check app tests
+	uv run ruff format --check app tests
 	uv run isort --check app tests
 
 typecheck:

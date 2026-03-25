@@ -17,8 +17,11 @@ from app.models import (
 )
 
 EXEMPTION_REASON_NO_START_DATE = "No start date available"
+EXEMPTION_REASON_NO_END_DATE = "No end date available"
 EXEMPTION_REASON_EXEMPT = "Activity is exempt from document requirements"
+EXEMPTION_REASON_NOT_CLOSED = "Activity is not a closed programme"
 AD_START_ACTUAL = "activity-date.start-actual"
+AD_END_ACTUAL = "activity-date.end-actual"
 
 logger = logging.getLogger("app.validator")
 
@@ -63,11 +66,13 @@ class ActivityValidator:
         attr_validations.append(self.validate_location(activity))
         attr_validations.append(self.validate_participating_orgs(activity))
 
-        # Document validations only apply to H1 activities
+        # H1-only validations: documents and downstream partner links
         if hierarchy == 1:
+            attr_validations.append(self.validate_downstream_partner_links(activity))
             doc_validations.append(self.validate_business_case(activity))
             doc_validations.append(self.validate_logical_framework(activity))
             doc_validations.append(self.validate_annual_review(activity))
+            doc_validations.append(self.validate_project_completion_review(activity))
 
         return attr_validations, doc_validations
 
@@ -418,6 +423,48 @@ class ActivityValidator:
             details={"count": len(participating_orgs), "percentage": 100.0},
         )
 
+    def validate_downstream_partner_links(self, activity: Dict[str, Any]) -> AttributeValidation:
+        """Validate that at least one downstream partner activity links to this H1 programme or its projects.
+
+        Requires `_has_downstream_partner_links` to be injected into the activity dict before validation.
+        """
+        logger.debug(f"Validating downstream partner links for activity: {activity.get('iati-identifier', 'unknown')}")
+        _expected_links = activity.get("_expected_downstream_partner_links", False)
+        _has_downstream_partner_links = activity.get("_has_downstream_partner_links", False)
+
+        if activity.get("hierarchy") != 1:
+            return AttributeValidation(
+                attribute="downstream_partner_links",
+                status=ValidationResult.NOT_APPLICABLE,
+                message="Downstream partner link validation only applies to H1 programmes",
+                details={"percentage": 0.0},
+            )
+
+        if _expected_links > 0:
+            if _has_downstream_partner_links:
+                return AttributeValidation(
+                    attribute="downstream_partner_links",
+                    status=ValidationResult.PASS,
+                    details={
+                        "percentage": 100.0,
+                        "partners": _expected_links,
+                        "partners_linking_back": _has_downstream_partner_links,
+                    },
+                )
+            else:
+                return AttributeValidation(
+                    attribute="downstream_partner_links",
+                    status=ValidationResult.FAIL,
+                    message="Downstream partner activities exist but none of them link back to this activity",
+                    details={"percentage": 0.0, "partners": _expected_links, "partners_linking_back": 0},
+                )
+        return AttributeValidation(
+            attribute="downstream_partner_links",
+            status=ValidationResult.NOT_APPLICABLE,
+            message="There are no partners downstream of this activity, so link back validation does not apply",
+            details={"percentage": 0.0},
+        )
+
     def _get_start_date(self, activity: Dict[str, Any]) -> Optional[datetime]:
         """Extract and parse activity start date."""
         start_date_str = activity.get(AD_START_ACTUAL)
@@ -612,6 +659,89 @@ class ActivityValidator:
             published=False,
         )
 
+    def validate_project_completion_review(self, activity: Dict[str, Any]) -> DocumentValidation:
+        """
+        Validate Project Completion Review publication.
+
+        Only applies to closed programmes (activity-status.code == 4) where the actual
+        end date was more than 6 months ago.
+
+        PASS: status == 4 AND end-actual > 6 months ago AND Project Completion Review published
+        FAIL: status == 4 AND end-actual > 6 months ago AND Project Completion Review NOT published
+        N/A: status != 4 OR no end-actual OR end-actual <= 6 months ago OR exempt
+        """
+        published = self._check_document_published(activity, r"Project Completion Review.*Published")
+        exempt = self._is_exempt(activity)
+
+        status_code = activity.get("activity-status.code")
+        if isinstance(status_code, list):
+            status_code = status_code[0] if status_code else None
+
+        six_months_ago = datetime.now(timezone.utc) - timedelta(
+            days=30 * settings.project_completion_review_exemption_months
+        )
+
+        # N/A cases
+        if exempt:
+            return DocumentValidation(
+                document_type="project_completion_review",
+                status=ValidationResult.NOT_APPLICABLE,
+                exemption_reason=EXEMPTION_REASON_EXEMPT,
+                published=published,
+            )
+
+        if str(status_code) != "4":
+            return DocumentValidation(
+                document_type="project_completion_review",
+                status=ValidationResult.NOT_APPLICABLE,
+                exemption_reason=EXEMPTION_REASON_NOT_CLOSED,
+                published=published,
+            )
+
+        end_date_str = activity.get(AD_END_ACTUAL)
+        if isinstance(end_date_str, list):
+            end_date_str = end_date_str[0] if end_date_str else None
+
+        if not end_date_str:
+            return DocumentValidation(
+                document_type="project_completion_review",
+                status=ValidationResult.NOT_APPLICABLE,
+                exemption_reason=EXEMPTION_REASON_NO_END_DATE,
+                published=published,
+            )
+
+        try:
+            end_date = datetime.fromisoformat(self._update_date_str(end_date_str))
+            if end_date.tzinfo is None:
+                end_date = end_date.replace(tzinfo=timezone.utc)
+        except (ValueError, AttributeError):
+            return DocumentValidation(
+                document_type="project_completion_review",
+                status=ValidationResult.NOT_APPLICABLE,
+                exemption_reason=EXEMPTION_REASON_NO_END_DATE,
+                published=published,
+            )
+
+        if end_date >= six_months_ago:
+            return DocumentValidation(
+                document_type="project_completion_review",
+                status=ValidationResult.NOT_APPLICABLE,
+                exemption_reason=f"Activity closed less than {settings.project_completion_review_exemption_months} months ago",
+                published=published,
+            )
+
+        # PASS or FAIL
+        if published:
+            return DocumentValidation(
+                document_type="project_completion_review", status=ValidationResult.PASS, published=True
+            )
+        return DocumentValidation(
+            document_type="project_completion_review",
+            status=ValidationResult.FAIL,
+            message="Project Completion Review document not published",
+            published=False,
+        )
+
     def calculate_budget_for_fy(
         self, h1_activities: List[Dict[str, Any]], h2_activities: List[Dict[str, Any]]
     ) -> float:
@@ -681,6 +811,9 @@ class ActivityValidator:
             participating_organisations_percentage=self._calculate_attribute_percentage(
                 n_reports, failed_activities, "participating_org"
             ),
+            downstream_partner_links_percentage=self._calculate_h1_attribute_percentage(
+                n_h1, failed_activities, "downstream_partner_links"
+            ),
             document_business_case_percentage=self._calculate_document_percentage(
                 n_h1, failed_activities, "business_case"
             ),
@@ -689,6 +822,9 @@ class ActivityValidator:
             ),
             document_annual_review_percentage=self._calculate_document_percentage(
                 n_h1, failed_activities, "annual_review"
+            ),
+            document_project_completion_review_percentage=self._calculate_document_percentage(
+                n_h1, failed_activities, "project_completion_review"
             ),
         )
 
@@ -720,6 +856,20 @@ class ActivityValidator:
             if activity.hierarchy == 1:
                 for doc in activity.documents:
                     if doc.document_type == document_type and doc.status == ValidationResult.FAIL:
+                        n_failed_h1 += 1
+                        break
+        n_success = n_h1 - n_failed_h1
+        return round((n_success / n_h1) * 100 if n_h1 > 0 else 100.0)
+
+    def _calculate_h1_attribute_percentage(
+        self, n_h1: int, failed_activities: List[ActivityValidationResult], attribute_name: str
+    ) -> int:
+        """Calculate the percentage of H1 activities passing a specific attribute check."""
+        n_failed_h1 = 0
+        for activity in failed_activities:
+            if activity.hierarchy == 1:
+                for attr in activity.attributes:
+                    if attr.attribute == attribute_name and attr.status == ValidationResult.FAIL:
                         n_failed_h1 += 1
                         break
         n_success = n_h1 - n_failed_h1

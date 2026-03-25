@@ -91,6 +91,7 @@ class DQARequest(BaseModel):
     require_funding_and_accountable: bool = False
     include_exemptions: bool = True
     optional_rules: Optional[OptionalRules] = None
+    skip_cache: Optional[bool] = False
 
 
 class DQAPercentages(BaseModel):
@@ -103,9 +104,11 @@ class DQAPercentages(BaseModel):
     sector_percentage: int
     location_data_percentage: int
     participating_organisations_percentage: int
+    downstream_partner_links_percentage: int
     document_business_case_percentage: int
     document_logical_framework_percentage: int
     document_annual_review_percentage: int
+    document_project_completion_review_percentage: int
 
 
 class ConfigAction(str, Enum):

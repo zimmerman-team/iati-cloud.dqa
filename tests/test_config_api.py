@@ -255,6 +255,44 @@ class TestEditConfigErrors:
         assert response.status_code == 400
 
 
+class TestApplyConfigEditDirect:
+    """Direct unit tests for _apply_config_edit defensive null-guards.
+
+    These branches are unreachable via the API (Pydantic rejects the requests first),
+    so we call the function directly with model_construct to bypass validation.
+    """
+
+    def test_add_with_none_value_returns_400(self):
+        from app.main import _apply_config_edit
+        from app.models import ConfigAction, ConfigEditRequest
+
+        edit_req = ConfigEditRequest.model_construct(action=ConfigAction.ADD, value=None)
+        result, error, code = _apply_config_edit(["existing"], edit_req)
+        assert result is None
+        assert code == 400
+        assert "add" in error.lower()
+
+    def test_remove_with_none_value_returns_400(self):
+        from app.main import _apply_config_edit
+        from app.models import ConfigAction, ConfigEditRequest
+
+        edit_req = ConfigEditRequest.model_construct(action=ConfigAction.REMOVE, value=None)
+        result, error, code = _apply_config_edit(["existing"], edit_req)
+        assert result is None
+        assert code == 400
+        assert "remove" in error.lower()
+
+    def test_update_with_none_old_value_returns_400(self):
+        from app.main import _apply_config_edit
+        from app.models import ConfigAction, ConfigEditRequest
+
+        edit_req = ConfigEditRequest.model_construct(action=ConfigAction.UPDATE, old_value=None, new_value=None)
+        result, error, code = _apply_config_edit(["existing"], edit_req)
+        assert result is None
+        assert code == 400
+        assert "update" in error.lower()
+
+
 @pytest.fixture(autouse=True)
 def restore_default_dates():
     """Save and restore settings.default_dates after every test to prevent cross-test leakage."""

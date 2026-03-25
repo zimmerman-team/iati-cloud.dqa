@@ -187,3 +187,48 @@ class TestSolrClient:
         results = client.get_activities("GB-GOV-1", filter_results=True)
         assert results[0]["id"] == "2"
         assert len(results) == 1
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_get_all_downstream_partners_basic(self, mock_solr_class):
+        """Returns the set of activity IDs that link back to the queried identifiers."""
+        mock_solr = Mock()
+        mock_solr.search.return_value = [
+            {
+                "iati-identifier": "EXTERNAL-1",
+                "transaction_provider_org_provider_activity_id": ["GB-GOV-1-H1"],
+            }
+        ]
+        mock_solr_class.return_value = mock_solr
+
+        client = SolrClient()
+        activities = {"GB-GOV-1-H1": ["GB-GOV-1-H1"]}
+        result = client.get_all_downstream_partners_for_h1_and_h2(activities)
+
+        assert "GB-GOV-1-H1" in result
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_get_all_downstream_partners_solr_error(self, mock_solr_class):
+        """A SolrError during downstream query is swallowed and returns empty set."""
+        mock_solr = Mock()
+        mock_solr.search.side_effect = pysolr.SolrError("timeout")
+        mock_solr_class.return_value = mock_solr
+
+        client = SolrClient()
+        result = client.get_all_downstream_partners_for_h1_and_h2({"GB-GOV-1": ["GB-GOV-1"]})
+
+        assert result == set()
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_extract_referenced_partners_non_list_ref(self, mock_solr_class):
+        """Scalar (non-list) ref values are coerced to a one-element list."""
+        mock_solr = Mock()
+        mock_solr_class.return_value = mock_solr
+
+        client = SolrClient()
+        iati_set = {"GB-GOV-1-H1"}
+        referenced: set = set()
+
+        fake_results = [{"transaction_provider_org_provider_activity_id": "GB-GOV-1-H1"}]
+        client._extract_referenced_partners(fake_results, iati_set, referenced)
+
+        assert "GB-GOV-1-H1" in referenced

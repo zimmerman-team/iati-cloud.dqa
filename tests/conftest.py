@@ -135,6 +135,8 @@ def sample_activity():
             "Logical Framework Published",
             "Annual Review Published",
         ],
+        "_has_downstream_partner_links": True,
+        "_expected_downstream_partner_links": 1,
     }
 
 

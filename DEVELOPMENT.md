@@ -20,7 +20,7 @@ cd iati-dqa-api
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install all dependencies from uv.lock (pinned, reproducible) and pre-commit hooks
-make dev
+make dev-install
 
 # Copy environment file
 cp .env.example .env
@@ -105,11 +105,11 @@ pytest -vv -s tests/test_api.py
 
 ```bash
 # Format all code
-black app tests
+ruff format app tests
 isort app tests
 
 # Check formatting without changes
-black --check app tests
+ruff format --check app tests
 isort --check-only app tests
 ```
 
@@ -125,7 +125,7 @@ bandit -c pyproject.toml -r app
 
 ### Pre-commit Hooks
 
-Pre-commit hooks (black, isort, flake8, bandit, commitlint) are installed automatically by `make dev`. To update hook versions to their latest releases:
+Pre-commit hooks (ruff-format, isort, flake8, bandit, commitlint) are installed automatically by `make dev-install`. To update hook versions to their latest releases:
 
 ```bash
 uv run pre-commit autoupdate

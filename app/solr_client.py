@@ -35,11 +35,13 @@ QUERY_FL = ",".join(
         "transaction.recipient-region.code",
         "sector.code",
         "transaction.sector.code",
+        "transaction.transaction-type.code",
         "sector.percentage",
         "budget.period-start.iso-date",
         TXT_BUDGET_VALUE,
         "document-link.title.narrative",
         "json.budget",
+        "json.related-activity",
     ]
 )
 
@@ -186,6 +188,45 @@ class SolrClient:
             if is_funding and is_accountable:
                 filtered_results.append(result)
         return filtered_results
+
+    DOWNSTREAM_CHUNK_SIZE = 100  # stay under Lucene's 1024 boolean-clause limit
+
+    def get_all_downstream_partners_for_h1_and_h2(self, activities: Dict[str, List[str]]) -> set:
+        """Get all downstream partners that link back to any H1 or H2 activity."""
+        iati_identifiers = [i for sublist in activities.values() for i in sublist]
+
+        iati_set = set(iati_identifiers)
+        referenced: set = set()
+        chunks = [
+            iati_identifiers[i : i + self.DOWNSTREAM_CHUNK_SIZE]  # noqa: E203
+            for i in range(0, len(iati_identifiers), self.DOWNSTREAM_CHUNK_SIZE)
+        ]
+
+        logger.info(
+            f"Querying downstream partner links for {len(iati_identifiers)} identifiers in {len(chunks)} chunk(s)"
+        )
+
+        for chunk in chunks:
+            id_query = OR.join([f'"{iati_id}"' for iati_id in chunk])
+            query = f"transaction_provider_org_provider_activity_id:({id_query})"
+            try:
+                results = self.solr.search(
+                    query, rows=999999, fl="transaction_provider_org_provider_activity_id,iati-identifier"
+                )
+                self._extract_referenced_partners(results, iati_set, referenced)
+            except pysolr.SolrError as e:
+                logger.error(f"Solr error querying downstream partner links (chunk): {e}")
+        return referenced
+
+    def _extract_referenced_partners(self, results: pysolr.Results, iati_set: set, referenced: set) -> None:
+        """Helper function to extract referenced partners from Solr results."""
+        for result in results:
+            refs = result.get("transaction_provider_org_provider_activity_id", [])
+            if not isinstance(refs, list):
+                refs = [refs] if refs else []
+            for ref in refs:
+                if ref in iati_set:
+                    referenced.add(ref)
 
     def get_h1_activities(self, organisation: str, **filters) -> List[Dict[str, Any]]:
         """Get H1 (programme) activities."""

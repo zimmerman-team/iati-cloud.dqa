@@ -22,7 +22,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
     "freezegun>=1.4.0",
-    "black>=23.12.0",
+    "ruff>=0.9.0",
     "flake8>=7.3.0",
     "flake8-isort>=7.0.0",
     "flake8-pyproject>=1.2.4",
@@ -32,9 +32,9 @@ dev = [
     "ty>=0.0.23",
 ]
 
-[tool.black]
+[tool.ruff]
 line-length = 120
-target-version = ['py311']
+target-version = "py311"
 
 [tool.isort]
 line_length = 120
@@ -52,7 +52,7 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
-addopts = "-v --cov=app --cov-report=term-missing --cov-report=html --cov-fail-under=95"
+addopts = "-v --cov=app --cov-report=term-missing --cov-report=html --cov-fail-under=100"
 
 [tool.coverage.run]
 source = ["app"]

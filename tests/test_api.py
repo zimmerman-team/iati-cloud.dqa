@@ -173,6 +173,7 @@ class TestDQAEndpoint:
 
         mock_solr.get_h1_activities.return_value = [failed_activity]
         mock_solr.get_h2_activities.return_value = []
+        mock_solr.get_all_downstream_partners_for_h1_and_h2.return_value = set()
 
         with patch("app.main.cache", mock_cache), patch("app.main.solr_client", mock_solr):
             request_data = {"organisation": "GB-GOV-1"}
@@ -219,6 +220,7 @@ class TestDQAEndpoint:
         }
         mock_solr.get_h1_activities.return_value = [passing_activity]
         mock_solr.get_h2_activities.return_value = []
+        mock_solr.get_all_downstream_partners_for_h1_and_h2.return_value = set()
         mock_validator.calculate_budget_for_fy.return_value = 0.0
 
         # Patch ActivityValidator.validate_activity to always return pass
@@ -266,3 +268,76 @@ class TestCacheClearEndpoint:
             assert data["cleared"] == 5
             assert data["pattern"] == "dqa:GB-GOV-1:*"
             mock_cache.clear_pattern.assert_called_once_with("dqa:GB-GOV-1:*")
+
+
+class TestDownstreamLinkInjection:
+    """Unit tests for the downstream partner link injection helpers in main.py."""
+
+    def test_process_h2_downstream_links_basic(self):
+        """H2 activity gets EDPL/HDPL fields injected correctly."""
+        from app.main import _process_h2_downstream_links
+
+        activity = {
+            "iati-identifier": "GB-GOV-1-H2",
+            "transaction.transaction-type.code": ["3", "1"],  # 1 outgoing transfer
+        }
+        referenced = {"GB-GOV-1-H2"}
+        h2_links = {}
+        _process_h2_downstream_links(activity, referenced, h2_links)
+
+        assert activity["_expected_downstream_partner_links"] == 1
+        assert activity["_has_downstream_partner_links"] is True
+        assert h2_links["GB-GOV-1-H2"] == {"expected_links": 1, "has_link": True}
+
+    def test_process_h1_downstream_links_h1_has_direct_link(self):
+        """H1 whose ID is in referenced_partners returns early (no child loop)."""
+        from app.main import _process_h1_downstream_links
+
+        activity = {"iati-identifier": "GB-GOV-1-H1", "transaction.transaction-type.code": []}
+        referenced = {"GB-GOV-1-H1"}
+        _process_h1_downstream_links(activity, referenced, {"GB-GOV-1-H1": []}, {})
+
+        assert activity["_has_downstream_partner_links"] is True
+        # EDPL stays at 0 (no transactions), early return before child loop
+        assert activity["_expected_downstream_partner_links"] == 0
+
+    def test_process_h1_downstream_links_with_h2_child_linking_back(self):
+        """H1 not in referenced_partners but child H2 is — H1 inherits has_link=True."""
+        from app.main import _process_h1_downstream_links
+
+        activity = {"iati-identifier": "GB-GOV-1-H1", "transaction.transaction-type.code": []}
+        referenced = set()  # H1 not directly referenced
+        activity_ids = {"GB-GOV-1-H1": ["GB-GOV-1-H1", "GB-GOV-1-H2"]}
+        h2_links = {"GB-GOV-1-H2": {"expected_links": 1, "has_link": True}}
+
+        _process_h1_downstream_links(activity, referenced, activity_ids, h2_links)
+
+        assert activity["_has_downstream_partner_links"] is True
+        assert activity["_expected_downstream_partner_links"] == 1
+
+    def test_inject_downstream_partner_links_with_related_activity(self):
+        """H1 json.related-activity type-2 entries are added to activity_ids; H2 activities are processed."""
+        from unittest.mock import patch as _patch
+
+        from app.main import _inject_downstream_partner_links
+        from app.solr_client import SolrClient
+
+        mock_solr_instance = Mock(spec=SolrClient)
+        mock_solr_instance.get_all_downstream_partners_for_h1_and_h2.return_value = set()
+
+        h1 = {
+            "iati-identifier": "GB-GOV-1-H1",
+            "transaction.transaction-type.code": [],
+            "json.related-activity": ['{"type": 2, "ref": "GB-GOV-1-H2"}'],
+        }
+        h2 = {
+            "iati-identifier": "GB-GOV-1-H2",
+            "transaction.transaction-type.code": [],
+        }
+
+        with _patch("app.main.solr_client", mock_solr_instance):
+            _inject_downstream_partner_links([h1], [h2])
+
+        call_args = mock_solr_instance.get_all_downstream_partners_for_h1_and_h2.call_args[0][0]
+        assert "GB-GOV-1-H2" in call_args.get("GB-GOV-1-H1", [])
+        assert h2["_has_downstream_partner_links"] is False

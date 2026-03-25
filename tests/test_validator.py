@@ -118,6 +118,13 @@ class TestStartDateValidation:
         assert result.status == ValidationResult.FAIL
         assert "default" in result.message.lower()
 
+    def test_none_element_in_list_start_date(self, validator):
+        """Test that a list with None as first element is treated as missing."""
+        activity = {"iati-identifier": "TEST", "activity-date.start-actual": [None]}
+        result = validator.validate_start_date(activity)
+        assert result.status == ValidationResult.FAIL
+        assert "missing" in result.message.lower()
+
     def test_invalid_date_format(self, validator):
         """Test that invalid date format fails."""
         activity = {"activity-date.start-actual": ["not-a-date"]}
@@ -519,6 +526,131 @@ class TestAnnualReviewValidation:
         assert "exempt" in result.exemption_reason.lower()
 
 
+class TestProjectCompletionReviewValidation:
+    """Tests for project completion review document validation."""
+
+    @freeze_time("2024-06-01")
+    def test_pass_with_doc(self, validator):
+        """Test that closed programme with old end date and document passes."""
+        activity = {
+            "iati-identifier": "TEST",
+            "activity-status.code": "4",
+            "activity-date.end-actual": ["2023-01-01T00:00:00Z"],
+            "document-link.title.narrative": ["Project Completion Review Published"],
+        }
+        result = validator.validate_project_completion_review(activity)
+        assert result.status == ValidationResult.PASS
+        assert result.published
+
+    @freeze_time("2024-06-01")
+    def test_fail_without_doc(self, validator):
+        """Test that closed programme with old end date and no document fails."""
+        activity = {
+            "iati-identifier": "TEST",
+            "activity-status.code": "4",
+            "activity-date.end-actual": ["2023-01-01T00:00:00Z"],
+            "document-link.title.narrative": [],
+        }
+        result = validator.validate_project_completion_review(activity)
+        assert result.status == ValidationResult.FAIL
+        assert not result.published
+
+    @freeze_time("2024-06-01")
+    def test_not_applicable_not_closed(self, validator):
+        """Test that active programme (status=2) is N/A."""
+        activity = {
+            "iati-identifier": "TEST",
+            "activity-status.code": "2",
+            "activity-date.end-actual": ["2023-01-01T00:00:00Z"],
+        }
+        result = validator.validate_project_completion_review(activity)
+        assert result.status == ValidationResult.NOT_APPLICABLE
+        assert "not a closed" in result.exemption_reason.lower()
+
+    @freeze_time("2024-06-01")
+    def test_not_applicable_no_end_date(self, validator):
+        """Test that closed programme with no end-actual is N/A."""
+        activity = {
+            "iati-identifier": "TEST",
+            "activity-status.code": "4",
+        }
+        result = validator.validate_project_completion_review(activity)
+        assert result.status == ValidationResult.NOT_APPLICABLE
+        assert "no end date" in result.exemption_reason.lower()
+
+    @freeze_time("2024-06-01")
+    def test_not_applicable_recent_closure(self, validator):
+        """Test that closed programme with end date <= 6 months ago is N/A."""
+        activity = {
+            "iati-identifier": "TEST",
+            "activity-status.code": "4",
+            "activity-date.end-actual": ["2024-04-01T00:00:00Z"],
+        }
+        result = validator.validate_project_completion_review(activity)
+        assert result.status == ValidationResult.NOT_APPLICABLE
+        assert "6 months" in result.exemption_reason
+
+    @freeze_time("2024-06-01")
+    def test_not_applicable_exempt(self, validator_with_exemptions):
+        """Test that exempt activity is N/A."""
+        activity = {
+            "iati-identifier": "GB-GOV-1-EXEMPT",
+            "activity-status.code": "4",
+            "activity-date.end-actual": ["2023-01-01T00:00:00Z"],
+        }
+        result = validator_with_exemptions.validate_project_completion_review(activity)
+        assert result.status == ValidationResult.NOT_APPLICABLE
+        assert "exempt" in result.exemption_reason.lower()
+
+    @freeze_time("2024-06-01")
+    def test_status_as_list(self, validator):
+        """Test that status code provided as a list is handled correctly."""
+        activity = {
+            "iati-identifier": "TEST",
+            "activity-status.code": ["4"],
+            "activity-date.end-actual": ["2023-01-01T00:00:00Z"],
+            "document-link.title.narrative": ["Project Completion Review Published"],
+        }
+        result = validator.validate_project_completion_review(activity)
+        assert result.status == ValidationResult.PASS
+
+    @freeze_time("2024-06-01")
+    def test_end_date_as_string(self, validator):
+        """Test that end-actual provided as a bare string (not list) is handled."""
+        activity = {
+            "iati-identifier": "TEST",
+            "activity-status.code": "4",
+            "activity-date.end-actual": "2023-01-01T00:00:00Z",
+            "document-link.title.narrative": ["Project Completion Review Published"],
+        }
+        result = validator.validate_project_completion_review(activity)
+        assert result.status == ValidationResult.PASS
+
+    @freeze_time("2024-06-01")
+    def test_bare_end_date_without_timezone(self, validator):
+        """Test that end-actual without timezone info is handled and timezone is applied."""
+        activity = {
+            "iati-identifier": "TEST",
+            "activity-status.code": "4",
+            "activity-date.end-actual": "2023-01-01",
+            "document-link.title.narrative": ["Project Completion Review Published"],
+        }
+        result = validator.validate_project_completion_review(activity)
+        assert result.status == ValidationResult.PASS
+
+    @freeze_time("2024-06-01")
+    def test_invalid_end_date_format(self, validator):
+        """Test that an unparseable end-actual date is treated as missing."""
+        activity = {
+            "iati-identifier": "TEST",
+            "activity-status.code": "4",
+            "activity-date.end-actual": "not-a-date",
+        }
+        result = validator.validate_project_completion_review(activity)
+        assert result.status == ValidationResult.NOT_APPLICABLE
+        assert "no end date" in result.exemption_reason.lower()
+
+
 class TestCompleteActivityValidation:
     """Tests for complete activity validation."""
 
@@ -526,11 +658,11 @@ class TestCompleteActivityValidation:
         """Test H1 activity gets all validations including documents."""
         attr_validations, doc_validations = validator.validate_activity(sample_activity)
 
-        # Should have 7 attribute validations
-        assert len(attr_validations) == 7
+        # Should have 8 attribute validations (7 shared + 1 H1-only downstream_partner_links)
+        assert len(attr_validations) == 8
 
-        # Should have 3 document validations for H1
-        assert len(doc_validations) == 3
+        # Should have 4 document validations for H1
+        assert len(doc_validations) == 4
 
         # All should pass for this sample
         all_pass = all(
@@ -548,6 +680,50 @@ class TestCompleteActivityValidation:
 
         # Should have NO document validations for H2
         assert len(doc_validations) == 0
+
+    def test_downstream_links_not_checked_for_h2(self, validator, sample_h2_activity):
+        """Test that H2 activities do not get the downstream_partner_links check."""
+        attr_validations, _ = validator.validate_activity(sample_h2_activity)
+        attr_names = [a.attribute for a in attr_validations]
+        assert "downstream_partner_links" not in attr_names
+
+
+class TestDownstreamPartnerLinks:
+    """Tests for downstream partner links validation."""
+
+    def test_pass_when_downstream_links_present(self, validator, sample_activity):
+        """H1 activity with downstream links should pass."""
+        sample_activity["_expected_downstream_partner_links"] = 1
+        sample_activity["_has_downstream_partner_links"] = True
+        result = validator.validate_downstream_partner_links(sample_activity)
+        assert result.status == ValidationResult.PASS
+        assert result.attribute == "downstream_partner_links"
+
+    def test_fail_when_no_downstream_links(self, validator, sample_activity):
+        """H1 activity with no downstream links should fail."""
+        sample_activity["_expected_downstream_partner_links"] = 1
+        sample_activity["_has_downstream_partner_links"] = False
+        result = validator.validate_downstream_partner_links(sample_activity)
+        assert result.status == ValidationResult.FAIL
+        assert result.message is not None
+
+    def test_fail_when_flag_missing(self, validator, sample_activity):
+        """H1 activity missing the injected flag defaults to FAIL."""
+        sample_activity["_expected_downstream_partner_links"] = 1
+        sample_activity.pop("_has_downstream_partner_links", None)
+        result = validator.validate_downstream_partner_links(sample_activity)
+        assert result.status == ValidationResult.FAIL
+
+    def test_not_applicable_when_no_expected_links(self, validator, sample_activity):
+        """H1 activity with no expected downstream partners is N/A."""
+        sample_activity["_expected_downstream_partner_links"] = 0
+        result = validator.validate_downstream_partner_links(sample_activity)
+        assert result.status == ValidationResult.NOT_APPLICABLE
+
+    def test_not_applicable_for_h2(self, validator, sample_h2_activity):
+        """H2 activity always returns N/A for downstream partner links."""
+        result = validator.validate_downstream_partner_links(sample_h2_activity)
+        assert result.status == ValidationResult.NOT_APPLICABLE
 
 
 class TestCalculateBudgetForFY:
@@ -658,18 +834,6 @@ class TestCalculatePercentages:
     def test_general_dqa(self, validator, dqa_response_sample):
         """If total is zero, should return 0% to avoid division by zero."""
         res = validator.calculate_percentages(dqa_response_sample)
-        """add assertions for:
-                "document_annual_review_percentage": 50,
-        "document_business_case_percentage": 50,
-        "description_percentage": 100,
-        "end_date_percentage": 0,
-        "location_data_percentage": 100,
-        "document_logical_framework_percentage": 50,
-        "participating_organisations_percentage": 100,
-        "sector_percentage": 100,
-        "start_date_percentage": 100,
-        "title_percentage": 79
-        """
         assert res.percentages.document_annual_review_percentage == 0
         assert res.percentages.document_business_case_percentage == 0
         assert res.percentages.description_percentage == 100
@@ -680,3 +844,61 @@ class TestCalculatePercentages:
         assert res.percentages.sector_percentage == 100
         assert res.percentages.start_date_percentage == 100
         assert res.percentages.title_percentage == 83
+
+    def test_calculate_percentages_no_failures(self, validator):
+        """All activities pass — _calculate_attribute_percentage returns 100 via early exit."""
+        from app.models import DQAResponse, OrganisationSummary
+
+        response = DQAResponse(
+            summary=OrganisationSummary(
+                organisation="GB-GOV-1",
+                financial_year="2024-2025",
+                total_programmes=0,
+                total_projects=2,
+                total_budget=0.0,
+            ),
+            failed_activities=[],
+            pass_count=2,
+            fail_count=0,
+            not_applicable_count=0,
+        )
+        res = validator.calculate_percentages(response)
+        assert res.percentages.title_percentage == 100
+        assert res.percentages.description_percentage == 100
+
+    def test_calculate_h1_attribute_failing(self, validator):
+        """H1 activity with a failing downstream_partner_links hits the n_failed_h1 increment."""
+        from app.models import ActivityValidationResult, AttributeValidation, DQAResponse, OrganisationSummary
+
+        h1_result = ActivityValidationResult(
+            iati_identifier="GB-GOV-1-FAIL",
+            hierarchy=1,
+            title="Test",
+            activity_status="2",
+            attributes=[
+                AttributeValidation(
+                    attribute="downstream_partner_links",
+                    status=ValidationResult.FAIL,
+                    message="No links",
+                    details={"percentage": 0.0},
+                )
+            ],
+            documents=[],
+            overall_status=ValidationResult.FAIL,
+            failure_count=1,
+        )
+        response = DQAResponse(
+            summary=OrganisationSummary(
+                organisation="GB-GOV-1",
+                financial_year="2024-2025",
+                total_programmes=1,
+                total_projects=0,
+                total_budget=0.0,
+            ),
+            failed_activities=[h1_result],
+            pass_count=0,
+            fail_count=1,
+            not_applicable_count=0,
+        )
+        res = validator.calculate_percentages(response)
+        assert res.percentages.downstream_partner_links_percentage == 0
