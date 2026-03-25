@@ -76,6 +76,22 @@ _SWAGGER_TEMPLATE = {
                     "description": "Whether to only include activities where the organisation is both funding and accountable.",  # noqa: E501
                     "default": False,
                 },
+                "skip_cache": {
+                    "type": "boolean",
+                    "description": "When true, bypass the Redis cache and always fetch fresh data from Solr. The response is still written to cache afterwards.",  # noqa: E501
+                    "default": False,
+                },
+                "optional_rules": {
+                    "type": "object",
+                    "description": "Optional validation rules that are disabled by default.",
+                    "properties": {
+                        "check_acronyms": {
+                            "type": "boolean",
+                            "description": "Validate that activity titles contain no unexpanded acronyms.",
+                            "default": False,
+                        }
+                    },
+                },
             },
         },
         "OrganisationSummary": {

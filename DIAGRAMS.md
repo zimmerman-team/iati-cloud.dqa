@@ -59,19 +59,21 @@ flowchart TD
     A([POST /dqa]) --> B[Parse & validate DQARequest]
     B -->|validation error| ERR1([400 Bad Request])
     B --> C[Build cache key from request payload]
-    C --> D{Cache hit?}
+    C --> D{Cache hit AND skip_cache=false?}
     D -->|yes| RESP([Return cached DQAResponse])
     D -->|no| E[Load document exemptions]
     E --> F[Query Solr: H1 activities with status 2 or 4]
+    F --> G[Query Solr: H2 activities with status 2 or 4]
     G --> H{require_funding_and_accountable?}
     H -->|yes| I[Post-filter: keep only activities where org is role 1 AND role 2]
     H -->|no| J
-    I --> J[Validate each H1 activity, 7 attributes + 3 documents]
-    J --> K[Validate each H2 activity, 7 attributes only]
-    K --> L[Aggregate pass/fail/not_applicable counts]
-    L --> M[Calculate percentages per attribute & document]
-    M --> N[Store result in Redis - 24h TTL]
-    N --> O([Return DQAResponse])
+    I --> J[Inject downstream partner link flags into H1 and H2 activities]
+    J --> K[Validate each H1 activity: 8 attributes + 4 documents]
+    K --> L[Validate each H2 activity: 7 attributes only]
+    L --> M[Aggregate pass/fail/not_applicable counts]
+    M --> N[Calculate percentages per attribute & document]
+    N --> P[Store result in Redis - 24h TTL]
+    P --> O([Return DQAResponse])
 ```
 
 ---
@@ -114,10 +116,12 @@ flowchart TD
     ATTR --> SEC[sector 5-digit DAC codes, sum to 100% ±0.02%]
     ATTR --> LOC[location country+region percentages sum to 100% ±0.02%]
     ATTR --> ORG[participating orgs at least one present]
+    HIER -->|H1 only| DP[downstream partner links: external activity links back to this programme or its H2 projects]
 
     DOC --> BC[Business Case required if started >3 months ago and after 2011-01-01]
     DOC --> LF[Logical Framework required if started >3 months ago]
     DOC --> AR[Annual Review required if started >19 months ago]
+    DOC --> PC[Project Completion required if ended >6 months ago]
 
     BC --> EX{Exempt?}
     LF --> EX
@@ -138,6 +142,9 @@ classDiagram
         +str organisation
         +SegmentationFilter segmentation
         +bool require_funding_and_accountable
+        +bool include_exemptions
+        +bool skip_cache
+        +OptionalRules optional_rules
     }
 
     class SegmentationFilter {
@@ -147,26 +154,39 @@ classDiagram
     }
 
     class DQAResponse {
-        +str organisation
-        +DQAPercentages percentages
+        +OrganisationSummary summary
         +list~ActivityValidationResult~ failed_activities
-        +int total_h1
-        +int total_h2
-        +int failed_h1
-        +int failed_h2
+        +int pass_count
+        +int fail_count
+        +int not_applicable_count
+        +datetime generated_at
+        +DQAPercentages percentages
     }
 
     class DQAPercentages {
-        +AttributePercentages attributes
-        +DocumentPercentages documents
+        +int title_percentage
+        +int description_percentage
+        +int start_date_percentage
+        +int end_date_percentage
+        +int sector_percentage
+        +int location_data_percentage
+        +int participating_organisations_percentage
+        +int downstream_partner_links_percentage
+        +int document_business_case_percentage
+        +int document_logical_framework_percentage
+        +int document_annual_review_percentage
+        +int document_project_completion_review_percentage
     }
 
     class ActivityValidationResult {
         +str iati_identifier
         +int hierarchy
-        +dict~str,AttributeValidation~ attributes
-        +dict~str,DocumentValidation~ documents
-        +bool passed
+        +str title
+        +ActivityStatus activity_status
+        +list~AttributeValidation~ attributes
+        +list~DocumentValidation~ documents
+        +ValidationResult overall_status
+        +int failure_count
     }
 
     class AttributeValidation {

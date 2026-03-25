@@ -131,8 +131,9 @@ Source field: Reverse search for `transaction_provider_org_provider_activity_id`
 
 | Condition | Status | Message | Percentage |
 |---|---|---|---|
-| At least one downstream partner activity links to the H1 or any of its H2 projects | PASS | - | 100% |
-| No downstream partner activity links found | FAIL | "No downstream partner activities are linked to this programme or its projects" | 0% |
+| No expected downstream partners (no outgoing transfers of type 3) | NOT_APPLICABLE | "There are no partners downstream of this activity, so link back validation does not apply" | 0% |
+| Expected partners exist and at least one links back | PASS | - | 100% |
+| Expected partners exist but none link back | FAIL | "Downstream partner activities exist but none of them link back to this activity" | 0% |
 
 Notes:
 - H1 and H2 activities are evaluated, but any failure is only shown at the H1 level.

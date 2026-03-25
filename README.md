@@ -93,7 +93,8 @@ Content-Type: application/json
     "sectors": ["151", "15170"]
   },
   "require_funding_and_accountable": false,
-  "include_exemptions": true
+  "include_exemptions": true,
+  "skip_cache": false
 }
 ```
 
