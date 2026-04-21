@@ -94,7 +94,8 @@ Content-Type: application/json
   },
   "require_funding_and_accountable": false,
   "include_exemptions": true,
-  "skip_cache": false
+  "skip_cache": false,
+  "failed_activities": true
 }
 ```
 

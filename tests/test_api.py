@@ -207,6 +207,57 @@ class TestDQAEndpoint:
             assert "regions" in call_kwargs
             assert call_kwargs["regions"] == ["298", "299"]
 
+    def test_dqa_endpoint_failed_activities_false_omits_list(self, client, mock_cache, mock_solr):
+        """Test that failed_activities=false returns an empty list even when failures exist."""
+        mock_cache.get.return_value = None
+
+        failed_activity = {
+            "iati-identifier": "GB-GOV-1-FAIL",
+            "hierarchy": 1,
+            "title.narrative": ["Too Short"],
+            "description.narrative": ["This description is longer than the title."],
+            "activity-status.code": "2",
+        }
+        mock_solr.get_h1_activities.return_value = [failed_activity]
+        mock_solr.get_h2_activities.return_value = []
+        mock_solr.get_all_downstream_partners_for_h1_and_h2.return_value = set()
+
+        with patch("app.main.cache", mock_cache), patch("app.main.solr_client", mock_solr):
+            request_data = {"organisation": "GB-GOV-1", "failed_activities": False}
+            response = client.post("/dqa", data=json.dumps(request_data), content_type="application/json")
+            data = json.loads(response.data)
+
+            assert response.status_code == 200
+            assert data["fail_count"] > 0
+            assert data["failed_activities"] == []
+
+    def test_dqa_endpoint_failed_activities_false_with_cache_hit(self, client, mock_cache):
+        """Test that failed_activities=false strips the list from a cached response."""
+        cached_data = {
+            "summary": {
+                "organisation": "GB-GOV-1",
+                "total_programmes": 1,
+                "total_projects": 0,
+                "total_budget": 0.0,
+                "financial_year": "2024-2025",
+            },
+            "failed_activities": [{"iati_identifier": "GB-GOV-1-FAIL"}],
+            "pass_count": 0,
+            "fail_count": 1,
+            "not_applicable_count": 0,
+            "generated_at": "2024-01-01T00:00:00",
+        }
+        mock_cache.get.return_value = cached_data
+
+        with patch("app.main.cache", mock_cache):
+            request_data = {"organisation": "GB-GOV-1", "failed_activities": False}
+            response = client.post("/dqa", data=json.dumps(request_data), content_type="application/json")
+            data = json.loads(response.data)
+
+            assert response.status_code == 200
+            assert data["fail_count"] == 1
+            assert data["failed_activities"] == []
+
     def test_dqa_endpoint_pass_count(self, client, mock_cache, mock_solr, mock_validator):
         """Test DQA endpoint returns correct pass_count when all activities pass validation."""
         mock_cache.get.return_value = None

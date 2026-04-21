@@ -81,6 +81,11 @@ _SWAGGER_TEMPLATE = {
                     "description": "When true, bypass the Redis cache and always fetch fresh data from Solr. The response is still written to cache afterwards.",  # noqa: E501
                     "default": False,
                 },
+                "failed_activities": {
+                    "type": "boolean",
+                    "description": "When false, the `failed_activities` list is omitted from the response. Useful when only summary metadata and percentages are needed.",  # noqa: E501
+                    "default": True,
+                },
                 "optional_rules": {
                     "type": "object",
                     "description": "Optional validation rules that are disabled by default.",

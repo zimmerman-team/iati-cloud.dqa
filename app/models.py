@@ -92,6 +92,7 @@ class DQARequest(BaseModel):
     include_exemptions: bool = True
     optional_rules: Optional[OptionalRules] = None
     skip_cache: Optional[bool] = False
+    failed_activities: bool = True
 
 
 class DQAPercentages(BaseModel):

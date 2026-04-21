@@ -131,6 +131,8 @@ def run_dqa():
     cached_result = cache.get(cache_key)
     if cached_result and not dqa_request.skip_cache:
         logger.debug(f"Cache hit for DQA: {dqa_request.organisation}")
+        if not dqa_request.failed_activities:
+            cached_result["failed_activities"] = []
         return jsonify(cached_result)
 
     with open(os.path.join(DATA_DIR, "document_validation_exemptions.json")) as f:
@@ -199,6 +201,9 @@ def run_dqa():
     # Cache result
     result_dict = response.model_dump(mode="json")
     cache.set(cache_key, result_dict)
+
+    if not dqa_request.failed_activities:
+        result_dict["failed_activities"] = []
 
     return jsonify(result_dict)
 
