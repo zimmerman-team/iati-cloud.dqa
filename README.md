@@ -1,13 +1,13 @@
 # IATI Data Quality API
 
-A comprehensive Flask-based API for assessing IATI (International Aid Transparency Initiative) data quality across programmes and projects. This API validates IATI activities against defined quality standards including attribute completeness, sector/location percentages, and document publication requirements.
+A comprehensive Flask-based API for assessing IATI (International Aid Transparency Initiative) data quality across programmes and projects. This API validates IATI activities against defined quality standards including attribute completeness, sector/location percentages, and document publication requirements. The response also includes available segmentations for a client to easily display available filters.
 
 ## Features
 
 - **Activity Validation**: Validates H1 (programmes) and H2 (projects) activities against multiple criteria
 - **Attribute Checks**: Title, description, dates, sectors, locations, and participating organizations
 - **Document Publication**: Validates Business Case, Logical Framework, and Annual Review publications
-- **Segmentation**: Filter by countries, regions, and sectors
+- **Segmentation**: Filter by countries, regions, and sectors; response includes `available_segmentations`. the unique codes present in the data, ready for use as filter values
 - **Redis Caching**: 24-hour cache with daily refresh
 - **Docker Compose**: Easy deployment with Redis and Flask API
 - **Comprehensive Tests**: Full pytest suite with edge case coverage
@@ -133,6 +133,11 @@ Response:
   "generated_at": "2024-02-12T10:30:00",
   "percentages": {
     "title_percentage": 45
+  },
+  "available_segmentations": {
+    "countries": ["AF", "BD", "KE"],
+    "regions": ["298"],
+    "sectors": ["15110", "15170", "72010"]
   }
 }
 ```

@@ -160,6 +160,30 @@ _SWAGGER_TEMPLATE = {
                 "document_project_completion_review_percentage": {"type": "integer"},
             },
         },
+        "AvailableSegmentations": {
+            "type": "object",
+            "description": "Unique country, region, and sector codes present in the fetched activity data. Use these values to populate segmentation filter dropdowns for follow-up requests.",
+            "properties": {
+                "countries": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "ISO 3166-1 alpha-2 country codes found in the data.",
+                    "example": ["BD", "ET", "KE"],
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "DAC region codes found in the data.",
+                    "example": ["298", "89"],
+                },
+                "sectors": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "DAC sector codes found in the data.",
+                    "example": ["15110", "15170", "72010"],
+                },
+            },
+        },
         "DQAResponse": {
             "type": "object",
             "properties": {
@@ -173,6 +197,7 @@ _SWAGGER_TEMPLATE = {
                 "not_applicable_count": {"type": "integer"},
                 "generated_at": {"type": "string", "format": "date-time"},
                 "percentages": {"$ref": "#/definitions/DQAPercentages", "x-nullable": True},
+                "available_segmentations": {"$ref": "#/definitions/AvailableSegmentations"},
             },
         },
         "ErrorResponse": {

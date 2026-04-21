@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 import pysolr
 import pytest  # noqa: F401
 
-from app.models import ActivityStatus
+from app.models import ActivityStatus, AvailableSegmentations
 from app.solr_client import SolrClient
 
 
@@ -232,3 +232,49 @@ class TestSolrClient:
         client._extract_referenced_partners(fake_results, iati_set, referenced)
 
         assert "GB-GOV-1-H1" in referenced
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_extract_segmentations_list_fields(self, mock_solr_class):
+        """Extracts unique codes from list-valued Solr fields."""
+        mock_solr_class.return_value = Mock()
+        client = SolrClient()
+        activities = [
+            {
+                "recipient-country.code": ["BD", "KE"],
+                "recipient-region.code": ["298"],
+                "sector.code": ["15170", "15110"],
+            },
+            {
+                "recipient-country.code": "BD",  # scalar
+                "transaction.recipient-country.code": ["ET"],
+                "transaction.recipient-region.code": "89",
+                "transaction.sector.code": ["72010"],
+            },
+        ]
+        result = client.extract_segmentations(activities)
+        assert isinstance(result, AvailableSegmentations)
+        assert result.countries == sorted(["BD", "ET", "KE"])
+        assert result.regions == sorted(["298", "89"])
+        assert result.sectors == sorted(["15110", "15170", "72010"])
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_extract_segmentations_empty(self, mock_solr_class):
+        """Returns empty lists when activities have no location/sector data."""
+        mock_solr_class.return_value = Mock()
+        client = SolrClient()
+        result = client.extract_segmentations([{}, {}])
+        assert result.countries == []
+        assert result.regions == []
+        assert result.sectors == []
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_extract_segmentations_deduplicates(self, mock_solr_class):
+        """Duplicate codes across activities appear only once."""
+        mock_solr_class.return_value = Mock()
+        client = SolrClient()
+        activities = [
+            {"recipient-country.code": ["BD"]},
+            {"recipient-country.code": ["BD"]},
+        ]
+        result = client.extract_segmentations(activities)
+        assert result.countries == ["BD"]

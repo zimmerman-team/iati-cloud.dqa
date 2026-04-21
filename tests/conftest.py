@@ -7,7 +7,7 @@ import pytest  # noqa: F401
 
 from app.cache import Cache
 from app.main import app
-from app.models import ActivityValidationResult, DQAResponse, OptionalRules, OrganisationSummary
+from app.models import ActivityValidationResult, AvailableSegmentations, DQAResponse, OptionalRules, OrganisationSummary
 from app.solr_client import SolrClient
 from app.validator import ActivityValidator
 
@@ -76,6 +76,7 @@ def mock_cache():
 def mock_solr():
     """Mock Solr client."""
     solr = Mock(spec=SolrClient)
+    solr.extract_segmentations.return_value = AvailableSegmentations()
     return solr
 
 

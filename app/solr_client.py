@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 import pysolr
 
 from app.config import settings
-from app.models import ActivityStatus
+from app.models import ActivityStatus, AvailableSegmentations
 
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 AND = " AND "
@@ -227,6 +227,27 @@ class SolrClient:
             for ref in refs:
                 if ref in iati_set:
                     referenced.add(ref)
+
+    def extract_segmentations(self, activities: List[Dict[str, Any]]) -> AvailableSegmentations:
+        """Extract unique country, region, and sector codes from a list of activity dicts."""
+        country_fields: tuple = ("recipient-country.code", "transaction.recipient-country.code")
+        region_fields: tuple = ("recipient-region.code", "transaction.recipient-region.code")
+        sector_fields: tuple = ("sector.code", "transaction.sector.code")
+
+        return AvailableSegmentations(
+            countries=self._extract_segmentation(activities, country_fields),
+            regions=self._extract_segmentation(activities, region_fields),
+            sectors=self._extract_segmentation(activities, sector_fields),
+        )
+
+    def _extract_segmentation(self, activities: List[Dict[str, Any]], fields: tuple) -> List[str]:
+        segment: set = set()
+        for activity in activities:
+            for field in fields:
+                val = activity.get(field, [])
+                codes = val if isinstance(val, list) else [val]
+                segment.update(c for c in codes if c)
+        return sorted(segment)
 
     def get_h1_activities(self, organisation: str, **filters) -> List[Dict[str, Any]]:
         """Get H1 (programme) activities."""

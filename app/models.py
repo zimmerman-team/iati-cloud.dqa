@@ -136,6 +136,14 @@ class ConfigEditRequest(BaseModel):
         return self
 
 
+class AvailableSegmentations(BaseModel):
+    """Available countries, regions, and sectors in the fetched activity data."""
+
+    countries: List[str] = Field(default_factory=list)
+    regions: List[str] = Field(default_factory=list)
+    sectors: List[str] = Field(default_factory=list)
+
+
 class DQAResponse(BaseModel):
     """Response from DQA endpoint."""
 
@@ -146,3 +154,4 @@ class DQAResponse(BaseModel):
     not_applicable_count: int = 0
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     percentages: Optional[DQAPercentages] = None
+    available_segmentations: AvailableSegmentations = Field(default_factory=AvailableSegmentations)

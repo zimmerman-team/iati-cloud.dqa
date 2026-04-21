@@ -88,6 +88,10 @@ def run_dqa():
 
       Only activities with status 2 (implementation) or 4 (closed within the last 18 months)
       are included. Results are cached in Redis for 24 hours.
+
+      The response also includes `available_segmentations`: the unique country, region, and
+      sector codes present in the fetched data. These can be used to populate filter dropdowns
+      for follow-up segmented requests.
     parameters:
       - in: body
         name: body
@@ -176,6 +180,8 @@ def run_dqa():
         f"DQA complete for {dqa_request.organisation}: {pass_count} pass, {fail_count} fail, {not_applicable_count} N/A"
     )
 
+    available_segmentations = solr_client.extract_segmentations(h1_activities + h2_activities)
+
     # Build response
     response = DQAResponse(
         summary=summary,
@@ -184,6 +190,7 @@ def run_dqa():
         fail_count=fail_count,
         not_applicable_count=not_applicable_count,
         generated_at=datetime.now(),
+        available_segmentations=available_segmentations,
     )
 
     # Add calculated percentages
