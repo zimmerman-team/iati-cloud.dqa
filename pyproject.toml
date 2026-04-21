@@ -1,6 +1,6 @@
 [project]
 name = "iati-dqa-api"
-version = "0.1.0"
+version = "0.1.1"
 description = "IATI Data Quality API - Validates IATI data quality across programmes and projects"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,7 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.4.0",
+    "pytest>=9.0.3",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
     "freezegun>=1.4.0",
