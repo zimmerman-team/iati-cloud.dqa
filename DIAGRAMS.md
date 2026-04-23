@@ -160,7 +160,10 @@ classDiagram
         +int fail_count
         +int not_applicable_count
         +datetime generated_at
-        +DQAPercentages percentages
+        +DQAPercentages total_percentages
+        +HierarchyPercentages h1_percentages
+        +HierarchyPercentages h2_percentages
+        +DQAPercentages percentages  # deprecated
     }
 
     class DQAPercentages {
@@ -176,6 +179,16 @@ classDiagram
         +int document_logical_framework_percentage
         +int document_annual_review_percentage
         +int document_project_completion_review_percentage
+    }
+
+    class HierarchyPercentages {
+        +int title_percentage
+        +int description_percentage
+        +int start_date_percentage
+        +int end_date_percentage
+        +int sector_percentage
+        +int participating_org_percentage
+        +int location_percentage
     }
 
     class ActivityValidationResult {
@@ -220,6 +233,7 @@ classDiagram
 
     DQARequest --> SegmentationFilter
     DQAResponse --> DQAPercentages
+    DQAResponse --> HierarchyPercentages
     DQAResponse --> ActivityValidationResult
     ActivityValidationResult --> AttributeValidation
     ActivityValidationResult --> DocumentValidation

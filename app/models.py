@@ -95,8 +95,20 @@ class DQARequest(BaseModel):
     failed_activities: bool = True
 
 
+class HierarchyPercentages(BaseModel):
+    """Attribute pass-rate percentages for a single hierarchy level (H1 or H2)."""
+
+    title_percentage: int
+    description_percentage: int
+    start_date_percentage: int
+    end_date_percentage: int
+    sector_percentage: int
+    participating_org_percentage: int
+    location_percentage: int
+
+
 class DQAPercentages(BaseModel):
-    """Percentages for DQA results."""
+    """Percentages for DQA results across all activities."""
 
     title_percentage: int
     description_percentage: int
@@ -154,5 +166,8 @@ class DQAResponse(BaseModel):
     fail_count: int = 0
     not_applicable_count: int = 0
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    percentages: Optional[DQAPercentages] = None
+    total_percentages: Optional[DQAPercentages] = None
+    h1_percentages: Optional[HierarchyPercentages] = None
+    h2_percentages: Optional[HierarchyPercentages] = None
+    percentages: Optional[DQAPercentages] = None  # DEPRECATED: use total_percentages
     available_segmentations: AvailableSegmentations = Field(default_factory=AvailableSegmentations)

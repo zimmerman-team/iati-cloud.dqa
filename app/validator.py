@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import re
 from datetime import datetime, timedelta, timezone
@@ -12,6 +13,7 @@ from app.models import (
     DocumentValidation,
     DQAPercentages,
     DQAResponse,
+    HierarchyPercentages,
     OptionalRules,
     ValidationResult,
 )
@@ -800,8 +802,9 @@ class ActivityValidator:
         n_reports = dqa_response.pass_count + dqa_response.fail_count
         failed_activities = dqa_response.failed_activities
         n_h1 = dqa_response.summary.total_programmes
+        n_h2 = dqa_response.summary.total_projects
 
-        dqa_response.percentages = DQAPercentages(
+        dqa_response.total_percentages = DQAPercentages(
             title_percentage=self._calculate_attribute_percentage(n_reports, failed_activities, "title"),
             description_percentage=self._calculate_attribute_percentage(n_reports, failed_activities, "description"),
             start_date_percentage=self._calculate_attribute_percentage(n_reports, failed_activities, "start_date"),
@@ -827,6 +830,39 @@ class ActivityValidator:
                 n_h1, failed_activities, "project_completion_review"
             ),
         )
+        dqa_response.percentages = dqa_response.total_percentages  # DEPRECATED, will be removed in the future.
+
+        dqa_response.h1_percentages = HierarchyPercentages(
+            title_percentage=self._calculate_hierarchy_attribute_percentage(1, n_h1, failed_activities, "title"),
+            description_percentage=self._calculate_hierarchy_attribute_percentage(
+                1, n_h1, failed_activities, "description"
+            ),
+            start_date_percentage=self._calculate_hierarchy_attribute_percentage(
+                1, n_h1, failed_activities, "start_date"
+            ),
+            end_date_percentage=self._calculate_hierarchy_attribute_percentage(1, n_h1, failed_activities, "end_date"),
+            sector_percentage=self._calculate_hierarchy_attribute_percentage(1, n_h1, failed_activities, "sector"),
+            participating_org_percentage=self._calculate_hierarchy_attribute_percentage(
+                1, n_h1, failed_activities, "participating_org"
+            ),
+            location_percentage=self._calculate_hierarchy_attribute_percentage(1, n_h1, failed_activities, "location"),
+        )
+
+        dqa_response.h2_percentages = HierarchyPercentages(
+            title_percentage=self._calculate_hierarchy_attribute_percentage(2, n_h2, failed_activities, "title"),
+            description_percentage=self._calculate_hierarchy_attribute_percentage(
+                2, n_h2, failed_activities, "description"
+            ),
+            start_date_percentage=self._calculate_hierarchy_attribute_percentage(
+                2, n_h2, failed_activities, "start_date"
+            ),
+            end_date_percentage=self._calculate_hierarchy_attribute_percentage(2, n_h2, failed_activities, "end_date"),
+            sector_percentage=self._calculate_hierarchy_attribute_percentage(2, n_h2, failed_activities, "sector"),
+            participating_org_percentage=self._calculate_hierarchy_attribute_percentage(
+                2, n_h2, failed_activities, "participating_org"
+            ),
+            location_percentage=self._calculate_hierarchy_attribute_percentage(2, n_h2, failed_activities, "location"),
+        )
 
         return dqa_response
 
@@ -845,7 +881,7 @@ class ActivityValidator:
                 if attr.attribute == attribute_name:
                     percentages.append((attr.details or {}).get("percentage", 0.0))
 
-        return round(sum(percentages) / len(percentages) if percentages else 0.0)
+        return math.floor(sum(percentages) / len(percentages) if percentages else 0.0)
 
     def _calculate_document_percentage(
         self, n_h1: int, failed_activities: List[ActivityValidationResult], document_type: str
@@ -859,7 +895,7 @@ class ActivityValidator:
                         n_failed_h1 += 1
                         break
         n_success = n_h1 - n_failed_h1
-        return round((n_success / n_h1) * 100 if n_h1 > 0 else 100.0)
+        return math.floor((n_success / n_h1) * 100 if n_h1 > 0 else 100.0)
 
     def _calculate_h1_attribute_percentage(
         self, n_h1: int, failed_activities: List[ActivityValidationResult], attribute_name: str
@@ -873,7 +909,25 @@ class ActivityValidator:
                         n_failed_h1 += 1
                         break
         n_success = n_h1 - n_failed_h1
-        return round((n_success / n_h1) * 100 if n_h1 > 0 else 100.0)
+        return math.floor((n_success / n_h1) * 100 if n_h1 > 0 else 100.0)
+
+    def _calculate_hierarchy_attribute_percentage(
+        self,
+        hierarchy: int,
+        n_hierarchy: int,
+        failed_activities: List[ActivityValidationResult],
+        attribute_name: str,
+    ) -> int:
+        """Calculate the pass-rate percentage for a specific attribute filtered to one hierarchy level."""
+        n_failed = 0
+        for activity in failed_activities:
+            if activity.hierarchy == hierarchy:
+                for attr in activity.attributes:
+                    if attr.attribute == attribute_name and attr.status == ValidationResult.FAIL:
+                        n_failed += 1
+                        break
+        n_success = n_hierarchy - n_failed
+        return math.floor((n_success / n_hierarchy) * 100 if n_hierarchy > 0 else 100.0)
 
     @staticmethod
     def _update_date_str(date_str: str):

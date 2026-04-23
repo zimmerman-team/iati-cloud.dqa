@@ -834,16 +834,16 @@ class TestCalculatePercentages:
     def test_general_dqa(self, validator, dqa_response_sample):
         """If total is zero, should return 0% to avoid division by zero."""
         res = validator.calculate_percentages(dqa_response_sample)
-        assert res.percentages.document_annual_review_percentage == 0
-        assert res.percentages.document_business_case_percentage == 0
-        assert res.percentages.description_percentage == 100
-        assert res.percentages.end_date_percentage == 100
-        assert res.percentages.location_data_percentage == 100
-        assert res.percentages.document_logical_framework_percentage == 0
-        assert res.percentages.participating_organisations_percentage == 100
-        assert res.percentages.sector_percentage == 100
-        assert res.percentages.start_date_percentage == 100
-        assert res.percentages.title_percentage == 83
+        assert res.total_percentages.document_annual_review_percentage == 0
+        assert res.total_percentages.document_business_case_percentage == 0
+        assert res.total_percentages.description_percentage == 100
+        assert res.total_percentages.end_date_percentage == 100
+        assert res.total_percentages.location_data_percentage == 100
+        assert res.total_percentages.document_logical_framework_percentage == 0
+        assert res.total_percentages.participating_organisations_percentage == 100
+        assert res.total_percentages.sector_percentage == 100
+        assert res.total_percentages.start_date_percentage == 100
+        assert res.total_percentages.title_percentage == 82
 
     def test_calculate_percentages_no_failures(self, validator):
         """All activities pass — _calculate_attribute_percentage returns 100 via early exit."""
@@ -863,8 +863,8 @@ class TestCalculatePercentages:
             not_applicable_count=0,
         )
         res = validator.calculate_percentages(response)
-        assert res.percentages.title_percentage == 100
-        assert res.percentages.description_percentage == 100
+        assert res.total_percentages.title_percentage == 100
+        assert res.total_percentages.description_percentage == 100
 
     def test_calculate_h1_attribute_failing(self, validator):
         """H1 activity with a failing downstream_partner_links hits the n_failed_h1 increment."""
@@ -901,4 +901,94 @@ class TestCalculatePercentages:
             not_applicable_count=0,
         )
         res = validator.calculate_percentages(response)
-        assert res.percentages.downstream_partner_links_percentage == 0
+        assert res.total_percentages.downstream_partner_links_percentage == 0
+        assert res.percentages == res.total_percentages  # deprecated alias
+
+    def test_h1_percentages_only_affected_by_h1_failures(self, validator):
+        """h1_percentages reflects only H1 activity failures; H2 failures do not affect it."""
+        from app.models import ActivityValidationResult, AttributeValidation, DQAResponse, OrganisationSummary
+
+        h2_fail = ActivityValidationResult(
+            iati_identifier="GB-GOV-1-H2-FAIL",
+            hierarchy=2,
+            title="H2 Activity",
+            activity_status="2",
+            attributes=[
+                AttributeValidation(attribute="title", status=ValidationResult.FAIL, details={"percentage": 0.0})
+            ],
+            documents=[],
+            overall_status=ValidationResult.FAIL,
+            failure_count=1,
+        )
+        response = DQAResponse(
+            summary=OrganisationSummary(
+                organisation="GB-GOV-1",
+                financial_year="2024-2025",
+                total_programmes=1,
+                total_projects=1,
+                total_budget=0.0,
+            ),
+            failed_activities=[h2_fail],
+            pass_count=1,
+            fail_count=1,
+            not_applicable_count=0,
+        )
+        res = validator.calculate_percentages(response)
+        assert res.h1_percentages.title_percentage == 100
+        assert res.h2_percentages.title_percentage == 0
+
+    def test_h2_percentages_only_affected_by_h2_failures(self, validator):
+        """h2_percentages reflects only H2 activity failures; H1 failures do not affect it."""
+        from app.models import ActivityValidationResult, AttributeValidation, DQAResponse, OrganisationSummary
+
+        h1_fail = ActivityValidationResult(
+            iati_identifier="GB-GOV-1-H1-FAIL",
+            hierarchy=1,
+            title="H1 Activity",
+            activity_status="2",
+            attributes=[
+                AttributeValidation(attribute="title", status=ValidationResult.FAIL, details={"percentage": 0.0})
+            ],
+            documents=[],
+            overall_status=ValidationResult.FAIL,
+            failure_count=1,
+        )
+        response = DQAResponse(
+            summary=OrganisationSummary(
+                organisation="GB-GOV-1",
+                financial_year="2024-2025",
+                total_programmes=1,
+                total_projects=1,
+                total_budget=0.0,
+            ),
+            failed_activities=[h1_fail],
+            pass_count=1,
+            fail_count=1,
+            not_applicable_count=0,
+        )
+        res = validator.calculate_percentages(response)
+        assert res.h2_percentages.title_percentage == 100
+        assert res.h1_percentages.title_percentage == 0
+
+    def test_hierarchy_percentages_all_100_when_no_activities(self, validator):
+        """h1_percentages and h2_percentages default to 100 when no activities exist."""
+        from app.models import DQAResponse, OrganisationSummary
+
+        response = DQAResponse(
+            summary=OrganisationSummary(
+                organisation="GB-GOV-1",
+                financial_year="2024-2025",
+                total_programmes=0,
+                total_projects=0,
+                total_budget=0.0,
+            ),
+            failed_activities=[],
+            pass_count=0,
+            fail_count=0,
+            not_applicable_count=0,
+        )
+        res = validator.calculate_percentages(response)
+        assert res.h1_percentages.title_percentage == 100
+        assert res.h1_percentages.description_percentage == 100
+        assert res.h2_percentages.title_percentage == 100
+        assert res.h2_percentages.description_percentage == 100
