@@ -61,9 +61,15 @@ _SWAGGER_TEMPLATE = {
             "required": ["organisation"],
             "properties": {
                 "organisation": {
-                    "type": "string",
-                    "description": "IATI organisation identifier.",
-                    "example": "GB-GOV-1",
+                    "oneOf": [
+                        {"type": "string", "description": "IATI organisation identifier.", "example": "GB-GOV-1"},
+                        {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of IATI organisation identifiers.",
+                            "example": ["GB-GOV-9", "GB-GOV-10"],
+                        },
+                    ],
                 },
                 "segmentation": {"$ref": "#/definitions/SegmentationFilter"},
                 "include_exemptions": {

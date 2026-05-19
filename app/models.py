@@ -86,7 +86,7 @@ class OptionalRules(BaseModel):
 class DQARequest(BaseModel):
     """Request parameters for DQA endpoint."""
 
-    organisation: str
+    organisation: str | List[str]
     segmentation: Optional[SegmentationFilter] = None
     require_funding_and_accountable: bool = False
     include_exemptions: bool = True

@@ -90,6 +90,25 @@ class TestDQAEndpoint:
             assert "pass_count" in data
             assert "fail_count" in data
 
+    def test_dqa_endpoint_with_multiple_organisations(self, client, mock_cache, mock_solr, mock_validator):
+        """Test DQA request with multiple organisations."""
+        mock_cache.get.return_value = None
+        mock_solr.get_h1_activities.return_value = []
+        mock_solr.get_h2_activities.return_value = []
+        mock_validator.calculate_budget_for_fy.return_value = 0.0
+
+        with (
+            patch("app.main.cache", mock_cache),
+            patch("app.main.solr_client", mock_solr),
+            patch("app.main.ActivityValidator", return_value=mock_validator),
+        ):
+            request_data = {"organisation": ["GB-GOV-1", "GB-GOV-2"]}
+            response = client.post("/dqa", data=json.dumps(request_data), content_type="application/json")
+            data = json.loads(response.data)
+            assert response.status_code == 200
+            assert "summary" in data
+            assert data["summary"]["organisation"] == "GB-GOV-1,GB-GOV-2"
+
     def test_dqa_endpoint_with_segmentation(self, client, mock_cache, mock_solr, mock_validator):
         """Test DQA request with segmentation filters."""
         mock_cache.get.return_value = None

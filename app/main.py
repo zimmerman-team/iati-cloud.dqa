@@ -76,9 +76,9 @@ def run_dqa():
     ---
     tags:
       - DQA
-    summary: Validate IATI data quality for an organisation.
+    summary: Validate IATI data quality for an organisation or multiple organisations.
     description: |
-      Fetches IATI activities for the given organisation from Solr and validates:
+      Fetches IATI activities for the given organisation(s) from Solr and validates:
       - **Attribute completeness** - title, description, dates, sectors, locations,
         participating organisations.
       - **Downstream partner links** (H1 programmes only) - whether any external organisation
@@ -112,10 +112,14 @@ def run_dqa():
         req_data = request.get_json()
         dqa_request = DQARequest(**req_data)
     except Exception as e:
-        logger.error(f"Invalid DQA request: {e}")
+        logger.exception(f"Invalid DQA request: {e}")
         return jsonify({"error": f"Invalid request: {str(e)}"}), 400
 
-    logger.info(f"DQA request for organisation: {dqa_request.organisation}")
+    if isinstance(dqa_request.organisation, list):
+        dqa_request.organisation = ",".join(dqa_request.organisation)
+        logger.info(f"DQA request for multiple organisations: {dqa_request.organisation}")
+    else:
+        logger.info(f"DQA request for organisation: {dqa_request.organisation}")
 
     # Check cache
     cache_key = cache.make_key(

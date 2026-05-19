@@ -139,7 +139,7 @@ flowchart TD
 ```mermaid
 classDiagram
     class DQARequest {
-        +str organisation
+        +str | list~str~ organisation
         +SegmentationFilter segmentation
         +bool require_funding_and_accountable
         +bool include_exemptions

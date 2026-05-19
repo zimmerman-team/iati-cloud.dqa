@@ -70,7 +70,11 @@ class SolrClient:
         queries = []
 
         # Organisation filter
-        queries.append(f'reporting-org.ref:"{organisation}"')
+        orgs_query = f'"{organisation}"'
+        if "," in organisation:
+            orgs_query = OR.join([f'"{org.strip()}"' for org in organisation.split(",")])
+            orgs_query = f"({orgs_query})"
+        queries.append(f"reporting-org.ref:{orgs_query}")
 
         # For closed activities, check if closed within last 18 months
         cutoff_date = datetime.now() - timedelta(days=30 * settings.closed_within_months)
@@ -172,22 +176,26 @@ class SolrClient:
             return []
 
     def _filter_results(self, results: pysolr.Results, organisation: str) -> List[Dict[str, Any]]:
+        comp = organisation.split(",") if "," in organisation else [organisation]
         filtered_results = []
         for result in results:
-            participating_orgs = result.get("json.participating-org", [])
-            is_funding = False
-            is_accountable = False
-            for org in participating_orgs:
-                parsed_org = json.loads(org)
-                if parsed_org.get("ref") != organisation:
-                    continue
-                if parsed_org.get("role") == 1:
-                    is_funding = True
-                if parsed_org.get("role") == 2:
-                    is_accountable = True
-            if is_funding and is_accountable:
-                filtered_results.append(result)
+            self._filter_result(result, comp, filtered_results)
         return filtered_results
+
+    def _filter_result(self, result: Dict[str, Any], comp: List[str], filtered_results: List[Dict[str, Any]]) -> None:
+        participating_orgs = result.get("json.participating-org", [])
+        is_funding = False
+        is_accountable = False
+        for org in participating_orgs:
+            parsed_org = json.loads(org)
+            if parsed_org.get("ref") not in comp:
+                continue
+            if parsed_org.get("role") == 1:
+                is_funding = True
+            if parsed_org.get("role") == 2:
+                is_accountable = True
+        if is_funding and is_accountable:
+            filtered_results.append(result)
 
     DOWNSTREAM_CHUNK_SIZE = 100  # stay under Lucene's 1024 boolean-clause limit
 

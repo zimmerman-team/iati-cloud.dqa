@@ -21,6 +21,16 @@ class TestSolrClient:
         assert ActivityStatus.CLOSED.value in query
 
     @patch("app.solr_client.pysolr.Solr")
+    def test_build_activity_scope_multiple_orgs_query_implementation(self, mock_solr_class):
+        """Test query building for implementation activities with multiple organisations."""
+        client = SolrClient()
+        query = client._build_activity_scope_query("GB-GOV-1,GB-GOV-2")
+
+        assert 'reporting-org.ref:("GB-GOV-1" OR "GB-GOV-2")' in query
+        assert ActivityStatus.IMPLEMENTATION.value in query
+        assert ActivityStatus.CLOSED.value in query
+
+    @patch("app.solr_client.pysolr.Solr")
     def test_get_activities_basic(self, mock_solr_class):
         """Test getting activities with basic filters."""
         mock_solr = Mock()
