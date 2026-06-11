@@ -3,6 +3,8 @@ from unittest.mock import Mock, patch  # noqa: F401
 
 import pytest  # noqa: F401
 
+from app.main import _extract_child_ids, _filter_h1_by_h2_scope
+
 
 class TestAuthentication:
     """Tests for API key authentication."""
@@ -411,3 +413,176 @@ class TestDownstreamLinkInjection:
         call_args = mock_solr_instance.get_all_downstream_partners_for_h1_and_h2.call_args[0][0]
         assert "GB-GOV-1-H2" in call_args.get("GB-GOV-1-H1", [])
         assert h2["_has_downstream_partner_links"] is False
+
+
+class TestExtractChildIds:
+    """Unit tests for _extract_child_ids helper."""
+
+    def test_returns_child_type2_refs(self):
+        """Type-2 related activities are returned as child IDs."""
+        activity = {
+            "json.related-activity": [
+                '{"type": 2, "ref": "GB-GOV-1-H2-A"}',
+                '{"type": 2, "ref": "GB-GOV-1-H2-B"}',
+            ]
+        }
+        assert _extract_child_ids(activity) == {"GB-GOV-1-H2-A", "GB-GOV-1-H2-B"}
+
+    def test_ignores_non_child_types(self):
+        """Type-1 (parent) and type-3 (sibling) refs are not returned."""
+        activity = {
+            "json.related-activity": [
+                '{"type": 1, "ref": "GB-GOV-1-PARENT"}',
+                '{"type": 3, "ref": "GB-GOV-1-SIBLING"}',
+            ]
+        }
+        assert _extract_child_ids(activity) == set()
+
+    def test_returns_empty_set_when_no_related_activities(self):
+        """Activities without related-activity return an empty set."""
+        assert _extract_child_ids({}) == set()
+
+    def test_ignores_entries_without_ref(self):
+        """Type-2 entries missing 'ref' are skipped."""
+        activity = {"json.related-activity": ['{"type": 2}']}
+        assert _extract_child_ids(activity) == set()
+
+
+class TestFilterH1ByH2Scope:
+    """Unit tests for _filter_h1_by_h2_scope helper."""
+
+    def _make_h1(self, iati_id: str, child_ids: list[str]) -> dict:
+        return {
+            "iati-identifier": iati_id,
+            "json.related-activity": [f'{{"type": 2, "ref": "{c}"}}' for c in child_ids],
+        }
+
+    def _make_h2(self, iati_id: str) -> dict:
+        return {"iati-identifier": iati_id}
+
+    def test_keeps_h1_with_at_least_one_in_scope_child(self):
+        h1 = self._make_h1("H1-A", ["H2-X", "H2-Y"])
+        h2_in_scope = [self._make_h2("H2-X")]
+        result = _filter_h1_by_h2_scope([h1], h2_in_scope)
+        assert len(result) == 1
+
+    def test_drops_h1_when_all_children_out_of_scope(self):
+        h1 = self._make_h1("H1-A", ["H2-X", "H2-Y"])
+        h2_in_scope = [self._make_h2("H2-Z")]  # neither H2-X nor H2-Y
+        result = _filter_h1_by_h2_scope([h1], h2_in_scope)
+        assert result == []
+
+    def test_keeps_childless_h1(self):
+        h1 = self._make_h1("H1-CHILDLESS", [])
+        result = _filter_h1_by_h2_scope([h1], [])
+        assert len(result) == 1
+
+    def test_mixed_h1s(self):
+        h1_with_scope = self._make_h1("H1-A", ["H2-X"])
+        h1_without_scope = self._make_h1("H1-B", ["H2-Y"])
+        h1_childless = self._make_h1("H1-C", [])
+        h2_in_scope = [self._make_h2("H2-X")]
+
+        result = _filter_h1_by_h2_scope([h1_with_scope, h1_without_scope, h1_childless], h2_in_scope)
+        ids = [a["iati-identifier"] for a in result]
+        assert "H1-A" in ids
+        assert "H1-C" in ids
+        assert "H1-B" not in ids
+
+
+class TestBudgetDateFilterFlag:
+    """Integration tests for use_budget_date_filter request flag."""
+
+    def test_budget_filter_flag_off_by_default(self, client, mock_cache, mock_solr, mock_validator):
+        """With no flag, Solr is called without use_budget_date_filter."""
+        mock_cache.get.return_value = None
+        mock_solr.get_h1_activities.return_value = []
+        mock_solr.get_h2_activities.return_value = []
+
+        with (
+            patch("app.main.cache", mock_cache),
+            patch("app.main.solr_client", mock_solr),
+            patch("app.main.ActivityValidator", return_value=mock_validator),
+        ):
+            client.post("/dqa", data=json.dumps({"organisation": "GB-GOV-1"}), content_type="application/json")
+
+        kwargs = mock_solr.get_h1_activities.call_args[1]
+        assert not kwargs.get("use_budget_date_filter", False)
+
+    def test_budget_filter_flag_on_passed_to_solr(self, client, mock_cache, mock_solr, mock_validator):
+        """use_budget_date_filter=True is forwarded to both Solr fetch calls."""
+        mock_cache.get.return_value = None
+        mock_solr.get_h1_activities.return_value = []
+        mock_solr.get_h2_activities.return_value = []
+
+        with (
+            patch("app.main.cache", mock_cache),
+            patch("app.main.solr_client", mock_solr),
+            patch("app.main.ActivityValidator", return_value=mock_validator),
+        ):
+            client.post(
+                "/dqa",
+                data=json.dumps({"organisation": "GB-GOV-1", "use_budget_date_filter": True}),
+                content_type="application/json",
+            )
+
+        h1_kwargs = mock_solr.get_h1_activities.call_args[1]
+        h2_kwargs = mock_solr.get_h2_activities.call_args[1]
+        assert h1_kwargs.get("use_budget_date_filter") is True
+        assert h2_kwargs.get("use_budget_date_filter") is True
+
+    def test_budget_filter_applies_h1_post_filter(self, client, mock_cache, mock_solr, mock_validator):
+        """When budget filter is on, H1 with no in-scope H2 children is dropped."""
+        mock_cache.get.return_value = None
+
+        # H1 has one H2 child (H2-OUT), which is NOT in the returned h2 set
+        h1 = {
+            "iati-identifier": "H1-A",
+            "hierarchy": 1,
+            "json.related-activity": ['{"type": 2, "ref": "H2-OUT"}'],
+        }
+        mock_solr.get_h1_activities.return_value = [h1]
+        mock_solr.get_h2_activities.return_value = []  # H2-OUT not in scope
+
+        with (
+            patch("app.main.cache", mock_cache),
+            patch("app.main.solr_client", mock_solr),
+            patch("app.main.ActivityValidator", return_value=mock_validator),
+        ):
+            response = client.post(
+                "/dqa",
+                data=json.dumps({"organisation": "GB-GOV-1", "use_budget_date_filter": True}),
+                content_type="application/json",
+            )
+            data = json.loads(response.data)
+
+        assert response.status_code == 200
+        assert data["summary"]["total_programmes"] == 0  # H1-A was dropped
+
+    def test_budget_filter_keeps_childless_h1(self, client, mock_cache, mock_solr, mock_validator):
+        """When budget filter is on, a childless H1 is retained."""
+        mock_cache.get.return_value = None
+        mock_solr.get_all_downstream_partners_for_h1_and_h2.return_value = set()
+
+        h1 = {
+            "iati-identifier": "H1-CHILDLESS",
+            "hierarchy": 1,
+            "json.related-activity": [],  # no children
+        }
+        mock_solr.get_h1_activities.return_value = [h1]
+        mock_solr.get_h2_activities.return_value = []
+
+        with (
+            patch("app.main.cache", mock_cache),
+            patch("app.main.solr_client", mock_solr),
+            patch("app.main.ActivityValidator", return_value=mock_validator),
+        ):
+            response = client.post(
+                "/dqa",
+                data=json.dumps({"organisation": "GB-GOV-1", "use_budget_date_filter": True}),
+                content_type="application/json",
+            )
+            data = json.loads(response.data)
+
+        assert response.status_code == 200
+        assert data["summary"]["total_programmes"] == 1  # H1-CHILDLESS retained

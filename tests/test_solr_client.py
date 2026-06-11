@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pysolr
@@ -288,3 +289,106 @@ class TestSolrClient:
         ]
         result = client.extract_segmentations(activities)
         assert result.countries == ["BD"]
+
+
+class TestBudgetScopeQuery:
+    """Tests for the budget-date activity scope query."""
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_build_budget_scope_query_single_org(self, mock_solr_class):
+        """Budget scope query uses the org filter and budget date fields."""
+        mock_solr_class.return_value = Mock()
+        client = SolrClient()
+
+        fy_start = datetime(2025, 4, 1)
+        fy_end = datetime(2026, 3, 31)
+        with patch("app.solr_client.settings") as mock_settings:
+            mock_settings.get_current_financial_year.return_value = (fy_start, fy_end)
+            query = client._build_budget_scope_query("GB-GOV-1")
+
+        assert 'reporting-org.ref:"GB-GOV-1"' in query
+        assert "budget.period-start.iso-date" in query
+        assert "budget.period-end.iso-date" in query
+        assert "2025-04-01" in query
+        assert "2026-03-31" in query
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_build_budget_scope_query_multiple_orgs(self, mock_solr_class):
+        """Budget scope query wraps multiple orgs in an OR clause."""
+        mock_solr_class.return_value = Mock()
+        client = SolrClient()
+
+        fy_start = datetime(2025, 4, 1)
+        fy_end = datetime(2026, 3, 31)
+        with patch("app.solr_client.settings") as mock_settings:
+            mock_settings.get_current_financial_year.return_value = (fy_start, fy_end)
+            query = client._build_budget_scope_query("GB-GOV-1,GB-GOV-2")
+
+        assert 'reporting-org.ref:("GB-GOV-1" OR "GB-GOV-2")' in query
+        assert "budget.period-start.iso-date" in query
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_build_budget_scope_query_no_status_codes(self, mock_solr_class):
+        """Budget scope query must not contain activity-status filters."""
+        mock_solr_class.return_value = Mock()
+        client = SolrClient()
+
+        fy_start = datetime(2025, 4, 1)
+        fy_end = datetime(2026, 3, 31)
+        with patch("app.solr_client.settings") as mock_settings:
+            mock_settings.get_current_financial_year.return_value = (fy_start, fy_end)
+            query = client._build_budget_scope_query("GB-GOV-1")
+
+        assert "activity-status" not in query
+        assert "activity-date.end-actual" not in query
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_get_activities_default_uses_status_scope(self, mock_solr_class):
+        """Default call (use_budget_date_filter=False) uses the status-based scope query."""
+        mock_solr = Mock()
+        mock_solr.search.return_value = []
+        mock_solr_class.return_value = mock_solr
+
+        client = SolrClient()
+        client.get_activities("GB-GOV-1")
+
+        query = mock_solr.search.call_args[0][0]
+        assert "activity-status" in query
+        assert "budget.period-start.iso-date" not in query
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_get_activities_budget_filter_uses_budget_scope(self, mock_solr_class):
+        """use_budget_date_filter=True switches to the budget-date scope query."""
+        mock_solr = Mock()
+        mock_solr.search.return_value = []
+        mock_solr_class.return_value = mock_solr
+
+        client = SolrClient()
+        fy_start = datetime(2025, 4, 1)
+        fy_end = datetime(2026, 3, 31)
+        with patch("app.solr_client.settings") as mock_settings:
+            mock_settings.get_current_financial_year.return_value = (fy_start, fy_end)
+            client.get_activities("GB-GOV-1", use_budget_date_filter=True)
+
+        query = mock_solr.search.call_args[0][0]
+        assert "budget.period-start.iso-date" in query
+        assert "activity-status" not in query
+
+    @patch("app.solr_client.pysolr.Solr")
+    def test_get_activities_budget_filter_preserves_other_filters(self, mock_solr_class):
+        """Segmentation filters still compose with the budget scope query."""
+        mock_solr = Mock()
+        mock_solr.search.return_value = []
+        mock_solr_class.return_value = mock_solr
+
+        client = SolrClient()
+        fy_start = datetime(2025, 4, 1)
+        fy_end = datetime(2026, 3, 31)
+        with patch("app.solr_client.settings") as mock_settings:
+            mock_settings.get_current_financial_year.return_value = (fy_start, fy_end)
+            client.get_activities("GB-GOV-1", hierarchy=2, countries=["BD"], use_budget_date_filter=True)
+
+        query = mock_solr.search.call_args[0][0]
+        assert "budget.period-start.iso-date" in query
+        assert "hierarchy:2" in query
+        assert 'recipient-country.code:"BD"' in query

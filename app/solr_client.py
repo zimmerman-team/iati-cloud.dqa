@@ -64,32 +64,42 @@ class SolrClient:
             logger.error(f"Error connecting to Solr: {e}")
             raise ConnectionError(f"Could not connect to Solr at {settings.solr_url}") from e
 
+    def _org_query(self, organisation: str) -> str:
+        """Build the reporting-org filter clause for the given organisation(s)."""
+        if "," in organisation:
+            orgs_query = OR.join([f'"{org.strip()}"' for org in organisation.split(",")])
+            return f"reporting-org.ref:({orgs_query})"
+        return f'reporting-org.ref:"{organisation}"'
+
     def _build_activity_scope_query(self, organisation: str) -> str:
         """Build query for activity scope (implementation or closed within 18 months)."""
         logger.debug(f"Building activity scope query for organisation: {organisation}")
-        queries = []
 
-        # Organisation filter
-        orgs_query = f'"{organisation}"'
-        if "," in organisation:
-            orgs_query = OR.join([f'"{org.strip()}"' for org in organisation.split(",")])
-            orgs_query = f"({orgs_query})"
-        queries.append(f"reporting-org.ref:{orgs_query}")
-
-        # For closed activities, check if closed within last 18 months
         cutoff_date = datetime.now() - timedelta(days=30 * settings.closed_within_months)
         cutoff_str = cutoff_date.strftime(DATE_FORMAT)
 
-        # Build the complex query: Implementation OR (Closed AND end date within 18 months)
         scope_query = (
             f"(activity-status.code:{ActivityStatus.IMPLEMENTATION.value} OR "
             f"(activity-status.code:{ActivityStatus.CLOSED.value} AND "
             f"activity-date.end-actual:[{cutoff_str} TO NOW]))"
         )
 
-        queries.append(scope_query)
+        return AND.join([self._org_query(organisation), scope_query])
 
-        return AND.join(queries)
+    def _build_budget_scope_query(self, organisation: str) -> str:
+        """Build query for activity scope based on budget dates within the current financial year."""
+        logger.debug(f"Building budget scope query for organisation: {organisation}")
+
+        fy_start, fy_end = settings.get_current_financial_year()
+        fy_start_str = fy_start.strftime(DATE_FORMAT)
+        fy_end_str = fy_end.strftime(DATE_FORMAT)
+
+        budget_query = (
+            f"(budget.period-start.iso-date:[{fy_start_str} TO {fy_end_str}] OR "
+            f"budget.period-end.iso-date:[{fy_start_str} TO {fy_end_str}])"
+        )
+
+        return AND.join([self._org_query(organisation), budget_query])
 
     def _segmented_query_parts(
         self,
@@ -137,6 +147,7 @@ class SolrClient:
         sectors: Optional[List[str]] = None,
         rows: int = 999999,  # fetch all available activities; never exceeds ~1 million in practice
         filter_results: bool = False,
+        use_budget_date_filter: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Get activities matching criteria.
@@ -148,12 +159,17 @@ class SolrClient:
             regions: List of region codes
             sectors: List of sector codes (3 or 5 digit)
             rows: Maximum number of rows to return
+            use_budget_date_filter: When True, scope by budget date in current FY instead of status codes
 
         Returns:
             List of activity documents
         """
         logger.info(f"Fetching activities for organisation: {organisation}")
-        query_parts = [self._build_activity_scope_query(organisation)]
+        if use_budget_date_filter:
+            scope_q = self._build_budget_scope_query(organisation)
+        else:
+            scope_q = self._build_activity_scope_query(organisation)
+        query_parts = [scope_q]
 
         # Hierarchy filter
         if hierarchy is not None:

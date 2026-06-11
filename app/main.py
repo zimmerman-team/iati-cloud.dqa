@@ -130,6 +130,7 @@ def run_dqa():
         sectors=dqa_request.segmentation.sectors if dqa_request.segmentation else None,
         require_funding_and_accountable=dqa_request.require_funding_and_accountable,
         optional_rules=dqa_request.optional_rules,
+        use_budget_date_filter=dqa_request.use_budget_date_filter,
     )
 
     cached_result = cache.get(cache_key)
@@ -155,10 +156,15 @@ def run_dqa():
             filters["sectors"] = dqa_request.segmentation.sectors
     if dqa_request.require_funding_and_accountable:
         filters["filter_results"] = dqa_request.require_funding_and_accountable
+    if dqa_request.use_budget_date_filter:
+        filters["use_budget_date_filter"] = dqa_request.use_budget_date_filter
 
     # Get activities
     h1_activities = solr_client.get_h1_activities(dqa_request.organisation, **filters)
     h2_activities = solr_client.get_h2_activities(dqa_request.organisation, **filters)
+
+    if dqa_request.use_budget_date_filter:
+        h1_activities = _filter_h1_by_h2_scope(h1_activities, h2_activities)
 
     # Determine downstream partner links for each H1 programme
     _inject_downstream_partner_links(h1_activities, h2_activities)
@@ -257,6 +263,35 @@ def _run_dqa_validate(
         # Count N/A
         not_applicable_count += sum(1 for v in all_validations if v.status == ValidationResult.NOT_APPLICABLE)
     return failed_activities, pass_count, fail_count, not_applicable_count
+
+
+def _extract_child_ids(activity: Dict[str, Any]) -> set:
+    """Return IATI identifiers of H2 children from an H1's related-activity list (type 2 = child)."""
+    child_ids = set()
+    for raw in activity.get("json.related-activity", []):
+        rel = json.loads(raw)
+        if rel.get("type") == 2 and rel.get("ref"):
+            child_ids.add(rel["ref"])
+    return child_ids
+
+
+def _filter_h1_by_h2_scope(
+    h1_activities: List[Dict[str, Any]],
+    h2_activities: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Keep H1 activities that have no H2 children, or have at least one H2 child in scope.
+
+    Both lists have already been pre-filtered by the budget-date scope query, so any H1
+    that survives here has its own budget in the current FY. The additional check drops H1s
+    whose H2 children all fall outside the current FY.
+    """
+    in_scope_h2_ids = {a["iati-identifier"] for a in h2_activities if a.get("iati-identifier")}
+    result = []
+    for h1 in h1_activities:
+        child_ids = _extract_child_ids(h1)
+        if not child_ids or child_ids & in_scope_h2_ids:
+            result.append(h1)
+    return result
 
 
 def _process_h2_downstream_links(

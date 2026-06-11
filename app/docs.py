@@ -103,6 +103,18 @@ _SWAGGER_TEMPLATE = {
                         }
                     },
                 },
+                "use_budget_date_filter": {
+                    "type": "boolean",
+                    "description": (
+                        "When true, activities are scoped by budget date rather than activity status. "
+                        "An H2 is in scope if any budget element has period-start or period-end within "
+                        "the current financial year (April-March). An H1 is in scope if it has its own "
+                        "budget in the current FY and either has no H2 children or at least one H2 child "
+                        "is in scope. The existing status-code filter (implementation / closed within "
+                        "18 months) is not applied when this flag is true."
+                    ),
+                    "default": False,
+                },
             },
         },
         "OrganisationSummary": {

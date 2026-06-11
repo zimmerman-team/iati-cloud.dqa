@@ -93,6 +93,7 @@ class DQARequest(BaseModel):
     optional_rules: Optional[OptionalRules] = None
     skip_cache: Optional[bool] = False
     failed_activities: bool = True
+    use_budget_date_filter: bool = False
 
 
 class HierarchyPercentages(BaseModel):
