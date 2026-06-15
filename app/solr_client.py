@@ -95,7 +95,7 @@ class SolrClient:
         fy_end_str = fy_end.strftime(DATE_FORMAT)
 
         budget_query = (
-            f"(budget.period-start.iso-date:[{fy_start_str} TO {fy_end_str}] OR "
+            f"(budget.period-start.iso-date:[{fy_start_str} TO {fy_end_str}] AND "
             f"budget.period-end.iso-date:[{fy_start_str} TO {fy_end_str}])"
         )
 
@@ -275,6 +275,7 @@ class SolrClient:
 
     def get_h1_activities(self, organisation: str, **filters) -> List[Dict[str, Any]]:
         """Get H1 (programme) activities."""
+        filters["use_budget_date_filter"] = False
         return self.get_activities(organisation, hierarchy=1, **filters)
 
     def get_h2_activities(self, organisation: str, **filters) -> List[Dict[str, Any]]:
