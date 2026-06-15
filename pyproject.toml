@@ -1,6 +1,6 @@
 [project]
 name = "iati-dqa-api"
-version = "0.1.3"
+version = "0.1.4"
 description = "IATI Data Quality API - Validates IATI data quality across programmes and projects"
 readme = "README.md"
 requires-python = ">=3.11"
